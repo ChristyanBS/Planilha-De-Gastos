@@ -1,6 +1,5 @@
 var incomes = [], expenses = [], goals = [], investments = [], reportChartInstance;
 var expenseCategories = {};
-// NOVO: Variável para guardar os descontos personalizados da calculadora
 var customDiscounts = [];
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
@@ -39,7 +38,6 @@ function loadData() {
         };
     }
 
-    // NOVO: Carrega os descontos personalizados salvos
     const savedDiscounts = localStorage.getItem('customDiscounts');
     if (savedDiscounts) {
         customDiscounts = JSON.parse(savedDiscounts);
@@ -48,18 +46,11 @@ function loadData() {
 
     if (!goals.find(g => g.name === "Reserva de Emergência")) goals.push({ id: generateId(), name: "Reserva de Emergência", target: 10000, current: 0, deadline: '' });
     if (!goals.find(g => g.name === "Economia Mensal")) goals.push({ id: generateId(), name: "Economia Mensal", target: 1000, current: 0, deadline: '' });
-
-    
-    const savedSubtitle = localStorage.getItem('headerSubtitle');
-    if (savedSubtitle) {
-    document.getElementById('header-subtitle').textContent = savedSubtitle;
-    }
 }
 
 function saveData() {
     localStorage.setItem('financialData', JSON.stringify({ incomes, expenses, goals, investments }));
     localStorage.setItem('expenseCategories', JSON.stringify(expenseCategories));
-    // NOVO: Salva os descontos personalizados
     localStorage.setItem('customDiscounts', JSON.stringify(customDiscounts));
 }
 
@@ -170,25 +161,13 @@ function updateTable(type, data, renderRowFn) {
 }
 
 function updateIncomeTable() {
-    // Dicionário de tradução para os tipos de renda
-    const incomeTypeLabels = {
-        fixed: 'Fixo',
-        variable: 'Variável',
-        extra: 'Extra'
-    };
-
+    const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
     const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
     const currentData = incomes.filter(predicate).sort((a, b) => new Date(b.date) - new Date(a.date));
-    
     updateTable('income', currentData, item => {
         const row = document.createElement('tr');
-        if (item.type === 'fixed') row.classList.add('income-fixed-row');
-        else if (item.type === 'variable') row.classList.add('income-variable-row');
-        else if (item.type === 'extra') row.classList.add('income-extra-row');
-        
-        // A mágica acontece aqui, na terceira coluna (<td>)
+        if (item.type === 'fixed') row.classList.add('income-fixed-row'); else if (item.type === 'variable') row.classList.add('income-variable-row'); else if (item.type === 'extra') row.classList.add('income-extra-row');
         row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${item.source}</td><td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td><td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || item.type}</td><td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td><td class="px-6 py-4 whitespace-nowrap text-right no-print"><button class="edit-income text-indigo-600 hover:text-indigo-400" data-id="${item.id}"><i class="fas fa-edit"></i></button><button class="delete-income ml-4 text-red-600 hover:text-red-400" data-id="${item.id}"><i class="fas fa-trash"></i></button></td>`;
-        
         return row;
     });
 }
@@ -288,7 +267,6 @@ function setupEventListeners() {
         }
         if (this.dataset.tab === 'reports') generateReport();
     }));
-
     document.getElementById('print-btn').addEventListener('click', () => window.print());
     document.getElementById('reset-btn').addEventListener('click', () => {
         if (confirm('Tem certeza? Isso vai apagar os dados deste mês.')) {
@@ -307,16 +285,13 @@ function setupEventListeners() {
     document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
     document.getElementById('month-select').addEventListener('change', (e) => { currentMonth = parseInt(e.target.value); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { currentYear = parseInt(e.target.value); updateDashboard(); });
-    
     ['income', 'expense', 'goal', 'investment'].forEach(type => {
         document.getElementById(`add-${type}-btn`).addEventListener('click', () => handleEdit(type, null));
         document.getElementById(`save-${type}`).addEventListener('click', function() { addOrUpdateItem(type, this.dataset.id); });
         document.getElementById(`close-${type}-modal`).addEventListener('click', () => closeModal(`${type}-modal`));
         document.getElementById(`cancel-${type}`).addEventListener('click', () => closeModal(`${type}-modal`));
     });
-    
     document.getElementById('generate-report-btn').addEventListener('click', generateReport);
-
     document.getElementById('expense-payment').addEventListener('change', function() {
         const installmentsGroup = document.getElementById('installments-group');
         if (this.value === 'credit') {
@@ -345,7 +320,6 @@ function setupEventListeners() {
             document.getElementById('new-category-input-group').classList.add('hidden');
         }
     });
-
     document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
     document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
     document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
@@ -365,7 +339,6 @@ function addOrUpdateItem(type, id) {
         itemData.type = document.getElementById('income-type').value;
         itemData.date = document.getElementById('income-date').value;
         if (itemData.source && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
-    
     } else if (type === 'expense') {
         itemData.description = document.getElementById('expense-description').value.trim();
         itemData.amount = getNumericValue('expense-amount');
@@ -384,11 +357,19 @@ function addOrUpdateItem(type, id) {
                     expenses[index] = { ...expenses[index], ...itemData };
                 }
             } else {
+                // MUDANÇA AQUI: Cria um ID de grupo para as parcelas
+                const groupId = (installments > 1) ? generateId() : null;
                 const originalDate = new Date(itemData.date + 'T00:00:00');
+                
                 for (let i = 1; i <= installments; i++) {
                     const newExpense = { ...itemData };
                     newExpense.id = generateId();
                     newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
+                    
+                    // MUDANÇA AQUI: Adiciona o ID do grupo a cada parcela
+                    if (groupId) {
+                        newExpense.installmentGroupId = groupId;
+                    }
                     
                     const installmentDate = new Date(originalDate);
                     installmentDate.setMonth(originalDate.getMonth() + (i - 1));
@@ -403,14 +384,12 @@ function addOrUpdateItem(type, id) {
             alert('Por favor, preencha todos os campos obrigatórios corretamente.');
         }
         return;
-
     } else if (type === 'goal') {
         itemData.name = document.getElementById('goal-name').value.trim();
         itemData.target = getNumericValue('goal-target');
         itemData.current = getNumericValue('goal-current') || 0;
         itemData.deadline = document.getElementById('goal-deadline').value;
         if (itemData.name && !isNaN(itemData.target) && itemData.target > 0) isValid = true;
-    
     } else if (type === 'investment') {
         itemData.description = document.getElementById('investment-description').value.trim();
         itemData.amount = getNumericValue('investment-amount');
@@ -498,15 +477,68 @@ function handleEdit(type, id) {
     openModal(modalId);
 }
 
+// MUDANÇA PRINCIPAL AQUI: A função inteira foi reescrita com a nova lógica
 function handleDelete(type, id) {
-    if (!confirm('Tem certeza que deseja excluir este item?')) return;
-    const goal = (type === 'goal') ? goals.find(g => g.id === id) : null;
-    if (goal && (goal.name === "Economia Mensal" || goal.name === "Reserva de Emergência")) {
+    const dataArray = window[`${type}s`];
+    const item = dataArray.find(i => i.id === id);
+
+    if (!item) return;
+
+    // Lógica para despesas parceladas
+    if (type === 'expense' && item.installmentGroupId) {
+        if (confirm("Este item é uma parcela. Deseja apagar TODAS as parcelas relacionadas a esta compra?")) {
+            expenses = expenses.filter(exp => exp.installmentGroupId !== item.installmentGroupId);
+        } else {
+            if (confirm("OK. Deseja apagar apenas esta parcela individual?")) {
+                expenses = expenses.filter(exp => exp.id !== id);
+            }
+        }
+    } 
+    // Lógica para metas padrão
+    else if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
         alert('Metas padrão não podem ser excluídas.');
         return;
     }
-    window[`${type}s`] = window[`${type}s`].filter(i => i.id !== id);
+    // Lógica padrão para todos os outros casos
+    else {
+        if (confirm('Tem certeza que deseja excluir este item?')) {
+            window[`${type}s`] = dataArray.filter(i => i.id !== id);
+        }
+    }
+    
     updateDashboard();
+}
+
+
+function editHeaderSubtitle() {
+    const h2 = document.getElementById('header-subtitle');
+    const currentText = h2.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.className = 'text-xl md:text-2xl bg-transparent border-b-2 border-indigo-400 focus:outline-none text-center';
+    h2.replaceWith(input);
+    input.focus();
+    input.addEventListener('blur', () => saveHeaderSubtitle(input));
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') saveHeaderSubtitle(input);
+    });
+}
+
+function saveHeaderSubtitle(inputElement) {
+    const newText = inputElement.value.trim();
+    if (newText) {
+        localStorage.setItem('headerSubtitle', newText);
+    } else {
+        localStorage.removeItem('headerSubtitle');
+    }
+    const newH2 = document.createElement('h2');
+    newH2.id = 'header-subtitle';
+    newH2.className = 'text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity';
+    newH2.title = 'Clique para editar';
+    newH2.textContent = newText || 'Nomes aqui';
+    inputElement.replaceWith(newH2);
+    newH2.addEventListener('click', editHeaderSubtitle);
 }
 
 // =======================================================
@@ -519,17 +551,10 @@ function renderCustomDiscounts() {
     customDiscounts.forEach((discount, index) => {
         const div = document.createElement('div');
         div.className = 'flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded';
-        div.innerHTML = `
-            <span class="text-sm">${discount.name} - ${formatCurrency(discount.value)}</span>
-            <button class="delete-discount-btn text-red-500 hover:text-red-700" data-index="${index}">
-                <i class="fas fa-times-circle"></i>
-            </button>
-        `;
+        div.innerHTML = `<span class="text-sm">${discount.name} - ${formatCurrency(discount.value)}</span><button class="delete-discount-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
         list.appendChild(div);
     });
-    document.querySelectorAll('.delete-discount-btn').forEach(btn => {
-        btn.addEventListener('click', deleteCustomDiscount);
-    });
+    document.querySelectorAll('.delete-discount-btn').forEach(btn => btn.addEventListener('click', deleteCustomDiscount));
 }
 
 function addCustomDiscount() {
@@ -537,7 +562,6 @@ function addCustomDiscount() {
     const valueInput = document.getElementById('new-discount-value');
     const name = nameInput.value.trim();
     const value = parseBrazilianNumber(valueInput.value);
-
     if (name && !isNaN(value) && value > 0) {
         customDiscounts.push({ name, value });
         saveData();
@@ -597,97 +621,33 @@ function calculateNetSalary() {
     const ot50hours = parseFloat(document.getElementById('calc-ot-50').value) || 0;
     const ot100hours = parseFloat(document.getElementById('calc-ot-100').value) || 0;
     const dependents = parseInt(document.getElementById('calc-dependents').value) || 0;
-    
     const totalCustomDiscounts = customDiscounts.reduce((sum, d) => sum + d.value, 0);
-
     const normalHourValue = baseSalary / workload;
     const totalOt50 = ot50hours * (normalHourValue * 1.5);
     const totalOt100 = ot100hours * (normalHourValue * 2.0);
     const dsr = (totalOt50 + totalOt100) / 6; 
     const totalGross = baseSalary + totalOt50 + totalOt100 + dsr;
-
     const inss = calculateINSS(totalGross);
     const irrf = calculateIRRF(totalGross, inss, dependents);
     const totalDiscounts = inss + irrf + totalCustomDiscounts;
-
     const netSalary = totalGross - totalDiscounts;
     const fgts = totalGross * 0.08;
-
     document.getElementById('res-base-salary').textContent = formatCurrency(baseSalary);
     document.getElementById('res-ot-50').textContent = formatCurrency(totalOt50);
     document.getElementById('res-ot-100').textContent = formatCurrency(totalOt100);
     document.getElementById('res-dsr').textContent = formatCurrency(dsr);
     document.getElementById('res-total-gross').textContent = formatCurrency(totalGross);
-    
     document.getElementById('res-inss').textContent = formatCurrency(inss > 0 ? -inss : 0);
     document.getElementById('res-irrf').textContent = formatCurrency(irrf > 0 ? -irrf : 0);
-    
     const customDiscountsResultList = document.getElementById('res-custom-discounts-list');
     customDiscountsResultList.innerHTML = '';
     customDiscounts.forEach(d => {
         const div = document.createElement('div');
         div.className = 'flex justify-between text-sm';
-        div.innerHTML = `
-            <p>${d.name}</p>
-            <p class="text-red-600 dark:text-red-400">${formatCurrency(-d.value)}</p>
-        `;
+        div.innerHTML = `<p>${d.name}</p><p class="text-red-600 dark:text-red-400">${formatCurrency(-d.value)}</p>`;
         customDiscountsResultList.appendChild(div);
     });
-
     document.getElementById('res-total-discounts').textContent = formatCurrency(totalDiscounts > 0 ? -totalDiscounts : 0);
     document.getElementById('res-net-salary').textContent = formatCurrency(netSalary);
     document.getElementById('res-fgts').textContent = formatCurrency(fgts);
-}
-    // NOVO: Funções para editar o subtítulo do cabeçalho
-function editHeaderSubtitle() {
-    const h2 = document.getElementById('header-subtitle');
-    const currentText = h2.textContent;
-
-    // Cria um campo de input
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = currentText;
-    // Usa as mesmas classes de estilo do h2 para uma transição suave
-    input.className = 'text-xl md:text-2xl bg-transparent border-b-2 border-indigo-400 focus:outline-none text-center';
-    
-    // Substitui o h2 pelo input
-    h2.replaceWith(input);
-    input.focus(); // Foca no input para o usuário já poder digitar
-
-    // Adiciona um listener para salvar quando o usuário clicar fora (perder o foco)
-    input.addEventListener('blur', () => {
-        saveHeaderSubtitle(input);
-    });
-
-    // Adiciona um listener para salvar quando o usuário teclar "Enter"
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            saveHeaderSubtitle(input);
-        }
-    });
-}
-
-function saveHeaderSubtitle(inputElement) {
-    const newText = inputElement.value.trim();
-
-    // Salva no localStorage
-    if (newText) {
-        localStorage.setItem('headerSubtitle', newText);
-    } else {
-        // Se o usuário apagar tudo, remove do storage para voltar ao padrão na próxima vez
-        localStorage.removeItem('headerSubtitle');
-    }
-    
-    // Cria o elemento h2 novamente
-    const newH2 = document.createElement('h2');
-    newH2.id = 'header-subtitle';
-    newH2.className = 'text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity';
-    newH2.title = 'Clique para editar';
-    newH2.textContent = newText || 'Nomes aqui'; // Usa o novo texto ou um padrão se estiver vazio
-    
-    // Substitui o input pelo novo h2
-    inputElement.replaceWith(newH2);
-
-    // Precisamos re-adicionar o listener de clique ao novo h2 que criamos
-    newH2.addEventListener('click', editHeaderSubtitle);
 }
