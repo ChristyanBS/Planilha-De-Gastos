@@ -1,17 +1,14 @@
 // INICIALIZAÇÃO E VARIÁVEIS GLOBAIS
 // =======================================================
-// Conexão com o Firebase (já inicializado no HTML)
 const auth = firebase.auth();
 const db = firebase.firestore();
-let currentUser; // Guarda as informações do usuário logado
+let currentUser;
 
-// Variáveis para os dados do aplicativo
 var incomes = [], expenses = [], goals = [], investments = [], reportChartInstance;
 var expenseCategories = {};
 var customDiscounts = [];
 var customProventos = [];
 
-// Variáveis de estado da UI
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
 
@@ -19,60 +16,92 @@ var currentMonth = new Date().getMonth() + 1;
 // PONTO DE ENTRADA PRINCIPAL
 // =======================================================
 document.addEventListener('DOMContentLoaded', function() {
-    // Escuta mudanças no estado de autenticação
     auth.onAuthStateChanged(async user => {
         if (user) {
-            // Usuário está logado
             currentUser = user;
-            
-            // Mostra o conteúdo principal da página
             document.getElementById('main-container').style.display = 'block';
 
-            // Carrega todos os dados do Firestore
+            const userEmailDisplay = document.getElementById('user-email-display');
+            if (userEmailDisplay) {
+                userEmailDisplay.textContent = currentUser.email;
+            }
+
             await loadDataFromFirestore();
             
-            // Configura a UI com os dados carregados
             document.getElementById('year-select').value = currentYear;
             document.getElementById('month-select').value = currentMonth;
-            if (localStorage.getItem('theme') === 'dark') { // O tema pode continuar no localStorage
+            if (localStorage.getItem('theme') === 'dark') {
                 document.documentElement.classList.add('dark');
             }
             updateThemeButton(localStorage.getItem('theme') || 'light');
             
-            // Atualiza o painel e configura os botões
             updateDashboard();
             setupEventListeners();
             document.querySelector('.tab-btn[data-tab="income"]').click();
-
         } else {
-            // Usuário não está logado, redireciona para a tela de login
             window.location.href = 'login.html';
         }
     });
 });
 
 
+// FUNÇÃO PARA ADICIONAR/ATUALIZAR SENHA
+// =======================================================
+async function adicionarSenhaNaConta(novaSenha) {
+  const user = firebase.auth().currentUser;
+  const feedbackEl = document.getElementById('password-feedback');
+
+  if (!user) {
+    feedbackEl.textContent = "Nenhum usuário logado.";
+    feedbackEl.className = 'text-sm mt-2 text-center text-red-500';
+    return;
+  }
+
+  const temProvedorSenha = user.providerData.some(
+    (provider) => provider.providerId === 'password'
+  );
+
+  try {
+    if (temProvedorSenha) {
+      await user.updatePassword(novaSenha);
+      feedbackEl.textContent = "Senha atualizada com sucesso!";
+      feedbackEl.className = 'text-sm mt-2 text-center text-green-500';
+    } else {
+      const credential = firebase.auth.EmailAuthProvider.credential(user.email, novaSenha);
+      await user.linkWithCredential(credential);
+      feedbackEl.textContent = "Login com senha adicionado! Agora você pode usar ambos os métodos.";
+      feedbackEl.className = 'text-sm mt-2 text-center text-green-500';
+    }
+    document.getElementById('new-password').value = '';
+  } catch (error) {
+    console.error("Erro ao processar senha:", error);
+    let userMessage = "Ocorreu um erro. Tente novamente.";
+    if (error.code === 'auth/weak-password') {
+        userMessage = "A senha é muito fraca. Use pelo menos 6 caracteres.";
+    } else if (error.code === 'auth/requires-recent-login') {
+        userMessage = "Esta é uma operação sensível. Por favor, faça logout e login novamente antes de alterar a senha.";
+    }
+    feedbackEl.textContent = userMessage;
+    feedbackEl.className = 'text-sm mt-2 text-center text-red-500';
+  }
+}
+
+
 // FUNÇÕES DE BANCO DE DADOS (FIRESTORE)
 // =======================================================
 async function loadDataFromFirestore() {
     if (!currentUser) return;
-    
     const userDocRef = db.collection('users').doc(currentUser.uid);
-
-    // Carrega dados das sub-coleções
     const loadCollection = async (collectionName) => {
         const snapshot = await userDocRef.collection(collectionName).get();
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     };
-
     [incomes, expenses, goals, investments] = await Promise.all([
         loadCollection('incomes'),
         loadCollection('expenses'),
         loadCollection('goals'),
         loadCollection('investments')
     ]);
-
-    // Carrega configurações do usuário (categorias, etc.)
     const userSettingsDoc = await userDocRef.get();
     if (userSettingsDoc.exists) {
         const settings = userSettingsDoc.data();
@@ -85,7 +114,6 @@ async function loadDataFromFirestore() {
             other: 'Outros'
         };
     } else {
-        // Se for o primeiro login, define valores padrão
         document.getElementById('header-subtitle').textContent = `${currentUser.displayName || currentUser.email}`;
         expenseCategories = {
             housing: 'Moradia', food: 'Alimentação', transport: 'Transporte',
@@ -93,8 +121,6 @@ async function loadDataFromFirestore() {
             other: 'Outros'
         };
     }
-    
-    // Garante que as metas padrão existam se ainda não tiverem sido criadas
     if (!goals.find(g => g.name === "Reserva de Emergência")) {
         const newGoal = { name: "Reserva de Emergência", target: 10000, current: 0, deadline: '' };
         const docRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(newGoal);
@@ -105,7 +131,6 @@ async function loadDataFromFirestore() {
         const docRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(newGoal);
         goals.push({id: docRef.id, ...newGoal});
     }
-
     renderCustomDiscounts();
     renderCustomProventos();
 }
@@ -114,7 +139,6 @@ async function addOrUpdateItem(type, id) {
     const itemData = {};
     let isValid = false;
     const getNumericValue = (elementId) => parseBrazilianNumber(document.getElementById(elementId).value);
-
     if (type === 'income') {
         itemData.source = document.getElementById('income-source').value.trim();
         itemData.amount = getNumericValue('income-amount');
@@ -141,7 +165,6 @@ async function addOrUpdateItem(type, id) {
         itemData.payment = document.getElementById('expense-payment').value;
         itemData.date = document.getElementById('expense-date').value;
         const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-
         if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) {
             try {
                 if (id) {
@@ -158,11 +181,9 @@ async function addOrUpdateItem(type, id) {
                         const newExpense = { ...itemData };
                         newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
                         if (groupId) newExpense.installmentGroupId = groupId;
-                        
                         const installmentDate = new Date(originalDate);
                         installmentDate.setMonth(originalDate.getMonth() + (i - 1));
                         newExpense.date = installmentDate.toISOString().split('T')[0];
-                        
                         const docRef = await db.collection('users').doc(currentUser.uid).collection('expenses').add(newExpense);
                         expenses.push({ id: docRef.id, ...newExpense });
                     }
@@ -175,15 +196,12 @@ async function addOrUpdateItem(type, id) {
         }
         return;
     }
-
     if (!isValid) {
         alert('Por favor, preencha todos os campos obrigatórios corretamente.\nVerifique se o valor numérico é maior que zero.');
         return;
     }
-
     const collectionName = `${type}s`;
     const dataArray = window[collectionName];
-    
     try {
         if (id) {
             await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(id).update(itemData);
@@ -205,7 +223,6 @@ async function handleDelete(type, id) {
     const dataArray = window[`${type}s`];
     const item = dataArray.find(i => i.id === id);
     if (!item) return;
-
     try {
         const collectionName = `${type}s`;
         if (type === 'expense' && item.installmentGroupId) {
@@ -249,21 +266,31 @@ async function saveUserSettings() {
 }
 
 
-// FUNÇÕES DA INTERFACE
+// FUNÇÕES DA INTERFACE E EVENT LISTENERS
 // =======================================================
 function setupEventListeners() {
     document.getElementById('logout-btn').addEventListener('click', () => {
         auth.signOut();
     });
 
-    document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
+    document.getElementById('save-password-btn').addEventListener('click', () => {
+        const newPassword = document.getElementById('new-password').value;
+        const feedbackEl = document.getElementById('password-feedback');
+        if (newPassword.length < 6) {
+            feedbackEl.textContent = 'A senha precisa ter no mínimo 6 caracteres.';
+            feedbackEl.className = 'text-sm mt-2 text-center text-red-500';
+            return;
+        }
+        adicionarSenhaNaConta(newPassword);
+    });
 
+    document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
     document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', function() {
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
         this.classList.add('active-tab');
         document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
         document.getElementById(`${this.dataset.tab}-content`).classList.remove('hidden');
-        if (this.dataset.tab === 'reports' || this.dataset.tab === 'calculator') {
+        if (this.dataset.tab === 'reports' || this.dataset.tab === 'calculator' || this.dataset.tab === 'account') {
             document.getElementById('month-select').classList.add('hidden');
             document.getElementById('year-select').classList.add('hidden');
         } else {
@@ -277,42 +304,35 @@ function setupEventListeners() {
         if (confirm('Tem certeza? Isso vai apagar os dados DESTE MÊS para renda, despesas e investimentos.')) {
             const batch = db.batch();
             const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
-            
             incomes.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('incomes').doc(item.id)));
             expenses.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('expenses').doc(item.id)));
             investments.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('investments').doc(item.id)));
-            
             await batch.commit();
-
             incomes = incomes.filter(item => !predicate(item));
             expenses = expenses.filter(item => !predicate(item));
             investments = investments.filter(item => !predicate(item));
-            
             updateDashboard();
         }
     });
     document.getElementById('clear-all-btn').addEventListener('click', async () => {
         if (confirm('ATENÇÃO! Isso apagará TODOS os seus dados permanentemente. Deseja continuar?')) {
-            alert("Função de apagar tudo em desenvolvimento. Por enquanto, apague os itens manualmente.");
+            alert("Função de apagar tudo em desenvolvimento.");
         }
     });
     document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
     document.getElementById('month-select').addEventListener('change', (e) => { currentMonth = parseInt(e.target.value); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { currentYear = parseInt(e.target.value); updateDashboard(); });
-    
     ['income', 'expense', 'goal', 'investment'].forEach(type => {
         document.getElementById(`add-${type}-btn`).addEventListener('click', () => handleEdit(type, null));
         document.getElementById(`save-${type}`).addEventListener('click', function() { addOrUpdateItem(type, this.dataset.id); });
         document.getElementById(`close-${type}-modal`).addEventListener('click', () => closeModal(`${type}-modal`));
         document.getElementById(`cancel-${type}`).addEventListener('click', () => closeModal(`${type}-modal`));
     });
-
     document.getElementById('generate-report-btn').addEventListener('click', generateReport);
     document.getElementById('expense-payment').addEventListener('change', function() {
         document.getElementById('installments-group').classList.toggle('hidden', this.value !== 'credit');
         if (this.value !== 'credit') document.getElementById('expense-installments').value = 1;
     });
-    
     document.getElementById('new-category-btn').addEventListener('click', () => document.getElementById('new-category-input-group').classList.toggle('hidden'));
     document.getElementById('save-new-category-btn').addEventListener('click', async () => {
         const newCategoryName = document.getElementById('new-category-name').value.trim();
@@ -330,7 +350,6 @@ function setupEventListeners() {
             document.getElementById('new-category-input-group').classList.add('hidden');
         }
     });
-    
     document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
     document.getElementById('add-provento-btn').addEventListener('click', addCustomProvento);
     document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
@@ -451,6 +470,7 @@ function getPaymentMethodBadge(payment) {
 }
 function updateTable(type, data, renderRowFn) {
     const tableBody = document.getElementById(`${type}s-table`);
+    if(!tableBody) return;
     tableBody.innerHTML = '';
     if (data.length === 0) {
         const colSpan = tableBody.closest('table').querySelector('thead tr').cells.length;
@@ -478,15 +498,9 @@ function updateIncomeTable() {
             <td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || item.type}</td>
             <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right no-print">
-                <button class="calc-income-btn text-blue-600 hover:text-blue-400" data-id="${item.id}" title="Calcular Salário Líquido com esta Renda">
-                    <i class="fas fa-calculator"></i>
-                </button>
-                <button class="edit-income ml-4 text-indigo-600 hover:text-indigo-400" data-id="${item.id}" title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="delete-income ml-4 text-red-600 hover:text-red-400" data-id="${item.id}" title="Excluir">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <button class="calc-income-btn text-blue-600 hover:text-blue-400" data-id="${item.id}" title="Calcular Salário Líquido"><i class="fas fa-calculator"></i></button>
+                <button class="edit-income ml-4 text-indigo-600 hover:text-indigo-400" data-id="${item.id}"><i class="fas fa-edit"></i></button>
+                <button class="delete-income ml-4 text-red-600 hover:text-red-400" data-id="${item.id}"><i class="fas fa-trash"></i></button>
             </td>`;
         return row;
     });
@@ -672,7 +686,7 @@ function addCustomDiscount() { addCustomItem('discount', 'desconto', customDisco
 function deleteCustomProvento(event) { deleteCustomItem(event, customProventos); }
 function deleteCustomDiscount(event) { deleteCustomItem(event, customDiscounts); }
 function calculateINSS(baseSalary) {
-    const TETO_INSS = 908.85; // Valor de 2024
+    const TETO_INSS = 908.85;
     let contribution = 0;
     if (baseSalary <= 1412.00) { contribution = baseSalary * 0.075; }
     else if (baseSalary <= 2666.68) { contribution = (1412.00 * 0.075) + ((baseSalary - 1412.00) * 0.09); }
@@ -682,7 +696,7 @@ function calculateINSS(baseSalary) {
     return Math.min(contribution, TETO_INSS);
 }
 function calculateIRRF(baseSalary, inss, dependents) {
-    const DEDUCAO_DEPENDENTE = 189.59; // Valor de 2024
+    const DEDUCAO_DEPENDENTE = 189.59;
     const baseIRRF = baseSalary - inss - (dependents * DEDUCAO_DEPENDENTE);
     let tax = 0;
     if (baseIRRF <= 2259.20) { tax = 0; }
