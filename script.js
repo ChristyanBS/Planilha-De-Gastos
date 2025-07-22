@@ -265,6 +265,34 @@ async function saveUserSettings() {
     await db.collection('users').doc(currentUser.uid).set(settings, { merge: true });
 }
 
+async function clearAllUserData() {
+    if (!currentUser) return;
+    try {
+        const userDocRef = db.collection('users').doc(currentUser.uid);
+        const collections = ['incomes', 'expenses', 'goals', 'investments'];
+        const batch = db.batch();
+
+        for (const collectionName of collections) {
+            const snapshot = await userDocRef.collection(collectionName).get();
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+
+        await batch.commit();
+
+        incomes = [];
+        expenses = [];
+        goals = [];
+        investments = [];
+        await loadDataFromFirestore(); 
+        updateDashboard();
+        alert('Todos os seus dados foram apagados com sucesso.');
+
+    } catch (error) {
+        console.error("Erro ao apagar todos os dados:", error);
+        alert("Ocorreu um erro ao tentar apagar os dados. Tente novamente.");
+    }
+}
+
 
 // FUNÇÕES DA INTERFACE E EVENT LISTENERS
 // =======================================================
@@ -314,11 +342,15 @@ function setupEventListeners() {
             updateDashboard();
         }
     });
+    
     document.getElementById('clear-all-btn').addEventListener('click', async () => {
         if (confirm('ATENÇÃO! Isso apagará TODOS os seus dados permanentemente. Deseja continuar?')) {
-            alert("Função de apagar tudo em desenvolvimento.");
+            if (confirm('Esta é a sua última chance. Tem certeza absoluta?')) {
+                await clearAllUserData();
+            }
         }
     });
+
     document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
     document.getElementById('month-select').addEventListener('change', (e) => { currentMonth = parseInt(e.target.value); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { currentYear = parseInt(e.target.value); updateDashboard(); });
@@ -523,10 +555,16 @@ function updateGoalsTable(monthSavings, totalInvested) {
         if (!goal) return;
         const type = goal.name === "Economia Mensal" ? 'monthly-savings' : 'emergency-fund';
         const percent = goal.target > 0 ? Math.min(Math.round((goal.current / goal.target) * 100), 100) : 0;
-        document.getElementById(`${type}-target`).textContent = `Meta: ${formatCurrency(goal.target)}`;
-        document.getElementById(`${type}-amount`).textContent = `Atual: ${formatCurrency(goal.current)} (${percent}%)`;
-        document.getElementById(`${type}-percent`).textContent = `${percent}%`;
-        document.getElementById(`${type}-progress`).style.width = `${percent}%`;
+        
+        const targetEl = document.getElementById(`${type}-target`);
+        const amountEl = document.getElementById(`${type}-amount`);
+        const percentEl = document.getElementById(`${type}-percent`);
+        const progressEl = document.getElementById(`${type}-progress`);
+
+        if(targetEl) targetEl.textContent = `R$ ${formatCurrency(goal.target)}`;
+        if(amountEl) amountEl.textContent = `${formatCurrency(goal.current)} de`;
+        if(percentEl) percentEl.textContent = `${percent}%`;
+        if(progressEl) progressEl.style.width = `${percent}%`;
     });
     const personalGoals = goals.filter(g => g.name !== "Economia Mensal" && g.name !== "Reserva de Emergência");
     updateTable('goal', personalGoals, item => {
@@ -547,6 +585,7 @@ function updateInvestmentsTable() {
 }
 function populateCategoryDropdown() {
     const select = document.getElementById('expense-category');
+    if (!select) return;
     const currentVal = select.value;
     select.innerHTML = '';
     for (const key in expenseCategories) {
@@ -579,14 +618,28 @@ function generateReport() {
     }
     reportChartInstance = new Chart(ctx, chartConfig);
 }
-function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
-function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if(modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if(modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
 function handleEdit(type, id) {
     const modalId = `${type}-modal`;
     const saveBtn = document.getElementById(`save-${type}`);
     const modalTitle = document.getElementById(modalId).querySelector('h3');
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento' };
-    const form = document.getElementById(modalId).querySelector('.p-4');
+    const form = document.getElementById(modalId).querySelector('div > div');
     form.querySelectorAll('input, select').forEach(el => {
         if (el.type === 'text' || el.type === 'date' || el.type === 'number') el.value = '';
         else if (el.tagName === 'SELECT') el.selectedIndex = 0;
@@ -649,6 +702,7 @@ function sendIncomeToCalculator(id) {
 }
 function renderCustomList(listName, listArray, listElementId, deleteCallback) {
     const list = document.getElementById(listElementId);
+    if (!list) return;
     list.innerHTML = '';
     listArray.forEach((item, index) => {
         const div = document.createElement('div');
