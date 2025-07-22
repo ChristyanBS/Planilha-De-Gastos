@@ -17,7 +17,6 @@
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <style>
-        /* Esconde o conteúdo até o login ser verificado */
         #main-container { display: none; }
     </style>
 </head>
@@ -43,7 +42,7 @@
                 </div>
             </div>
             <div class="flex justify-center mt-4 no-print">
-                <button id="print-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg mr-2 flex items-center"><i class="fas fa-print mr-2"></i> Imprimir</button>
+                <button id="print-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded-lg mr-2 flex items-center"><i class="fas fa-print mr-2"></i> Imprimir</button>
                 <button id="reset-btn" class="bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/70 text-rose-800 dark:text-rose-200 px-4 py-2 rounded-lg mr-2 flex items-center"><i class="fas fa-redo mr-2"></i> Reiniciar Mês</button>
                 <button id="clear-all-btn" class="bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900/70 text-red-800 dark:text-red-200 px-4 py-2 rounded-lg flex items-center"><i class="fas fa-trash-alt mr-2"></i> Limpar Tudo</button>
             </div>
@@ -52,7 +51,7 @@
         <section class="mb-8">
             <div class="flex justify-between items-center mb-4">
                 <div class="flex flex-col sm:flex-row w-full sm:w-auto">
-                    <select id="month-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 text-gray-700 dark:text-gray-200 mb-2 sm:mb-0 sm:mr-2 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
+                    <select id="month-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 mb-2 sm:mb-0 sm:mr-2 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="1">Janeiro</option> <option value="2">Fevereiro</option>
                         <option value="3">Março</option> <option value="4">Abril</option>
                         <option value="5">Maio</option> <option value="6">Junho</option>
@@ -60,8 +59,8 @@
                         <option value="9">Setembro</option> <option value="10">Outubro</option>
                         <option value="11">Novembro</option> <option value="12">Dezembro</option>
                     </select>
-                    <select id="year-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 text-gray-700 dark:text-gray-200 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
-                        <option>2024</option> <option>2025</option> <option>2026</option>
+                    <select id="year-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>2024</option><option>2025</option><option>2026</option>
                     </select>
                 </div>
             </div>
@@ -77,7 +76,7 @@
         </section>
 
         <div class="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-print">
-            <div class="flex flex-nowrap">
+            <div class="flex flex-nowrap -mb-px">
                 <button data-tab="income" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Renda</button>
                 <button data-tab="expenses" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Despesas</button>
                 <button data-tab="goals" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Metas</button>
@@ -89,37 +88,252 @@
         </div>
 
         <div class="bg-white dark:bg-gray-800/50 rounded-b-xl shadow-md p-6 mb-8">
-            <div id="income-content" class="tab-content"></div>
-            <div id="expenses-content" class="tab-content hidden"></div>
-            <div id="goals-content" class="tab-content hidden"></div>
-            <div id="investments-content" class="tab-content hidden"></div>
-            <div id="calculator-content" class="tab-content hidden"></div>
-            <div id="reports-content" class="tab-content hidden"></div>
-
+            <div id="income-content" class="tab-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Rendas do Mês</h3>
+                    <button id="add-income-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Renda</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
+                    <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg"><p class="text-sm">Fixa</p><p id="fixed-income" class="font-bold text-lg">R$ 0,00</p></div>
+                    <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Variável</p><p id="variable-income" class="font-bold text-lg">R$ 0,00</p></div>
+                    <div class="bg-purple-50 dark:bg-purple-900/50 p-3 rounded-lg"><p class="text-sm">Extra</p><p id="extra-income" class="font-bold text-lg">R$ 0,00</p></div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr><th class="px-6 py-3">Fonte</th><th class="px-6 py-3">Valor</th><th class="px-6 py-3">Tipo</th><th class="px-6 py-3">Data</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                        </thead>
+                        <tbody id="incomes-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="expenses-content" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Despesas do Mês</h3>
+                    <button id="add-expense-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Despesa</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 text-center text-xs">
+                    <div class="bg-red-50 dark:bg-red-900/50 p-2 rounded-lg">Moradia<p id="home-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-orange-50 dark:bg-orange-900/50 p-2 rounded-lg">Alimentação<p id="food-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-yellow-50 dark:bg-yellow-900/50 p-2 rounded-lg">Transporte<p id="transport-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-green-50 dark:bg-green-900/50 p-2 rounded-lg">Saúde<p id="health-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-blue-50 dark:bg-blue-900/50 p-2 rounded-lg">Educação<p id="education-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-purple-50 dark:bg-purple-900/50 p-2 rounded-lg">Lazer<p id="entertainment-expenses" class="font-bold">R$ 0,00</p></div>
+                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg col-span-2">Outros<p id="other-expenses" class="font-bold">R$ 0,00</p></div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr><th class="px-6 py-3">Categoria</th><th class="px-6 py-3">Descrição</th><th class="px-6 py-3">Valor</th><th class="px-6 py-3">Data</th><th class="px-6 py-3">Pagamento</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                        </thead>
+                        <tbody id="expenses-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="goals-content" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Metas Financeiras</h3>
+                    <button id="add-goal-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Meta</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-blue-50 dark:bg-blue-900/50 p-4 rounded-lg">
+                        <p class="font-semibold">Economia Mensal (<span id="monthly-savings-percent">0%</span>)</p>
+                        <div class="progress-bar mt-2"><div id="monthly-savings-progress" class="progress-fill bg-blue-500"></div></div>
+                        <p id="monthly-savings-amount" class="text-sm text-center mt-1">R$ 0,00 de <span id="monthly-savings-target">R$ 0,00</span></p>
+                    </div>
+                    <div class="bg-green-50 dark:bg-green-900/50 p-4 rounded-lg">
+                        <p class="font-semibold">Reserva de Emergência (<span id="emergency-fund-percent">0%</span>)</p>
+                        <div class="progress-bar mt-2"><div id="emergency-fund-progress" class="progress-fill bg-green-500"></div></div>
+                        <p id="emergency-fund-amount" class="text-sm text-center mt-1">R$ 0,00 de <span id="emergency-fund-target">R$ 0,00</span></p>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr><th class="px-6 py-3">Nome</th><th class="px-6 py-3">Meta</th><th class="px-6 py-3">Atual</th><th class="px-6 py-3">Prazo</th><th class="px-6 py-3">Progresso</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                        </thead>
+                        <tbody id="goals-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="investments-content" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Carteira de Investimentos</h3>
+                    <button id="add-investment-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Investimento</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
+                    <div class="bg-indigo-50 dark:bg-indigo-900/50 p-3 rounded-lg"><p class="text-sm">Total Investido</p><p id="total-investment" class="font-bold text-lg">R$ 0,00</p></div>
+                    <div class="bg-teal-50 dark:bg-teal-900/50 p-3 rounded-lg"><p class="text-sm">Rendimento Anual (est.)</p><p id="expected-return" class="font-bold text-lg">R$ 0,00</p></div>
+                    <div class="bg-sky-50 dark:bg-sky-900/50 p-3 rounded-lg"><p class="text-sm">Rendimento Mensal (est.)</p><p id="monthly-return" class="font-bold text-lg">R$ 0,00</p></div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                            <tr><th class="px-6 py-3">Tipo</th><th class="px-6 py-3">Descrição</th><th class="px-6 py-3">Valor Aportado</th><th class="px-6 py-3">Rendimento</th><th class="px-6 py-3">Data</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                        </thead>
+                        <tbody id="investments-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="calculator-content" class="tab-content hidden">
+                <h3 class="text-xl font-semibold mb-4">Calculadora de Salário Líquido</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" id="calc-base-salary" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 3500,00"></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="calc-workload" class="block text-sm font-medium">Carga Horária (mês)</label><input type="number" id="calc-workload" value="220" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div><label for="calc-dependents" class="block text-sm font-medium">Dependentes</label><input type="number" id="calc-dependents" value="0" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="calc-ot-50" class="block text-sm font-medium">Horas Extras 50%</label><input type="number" id="calc-ot-50" value="0" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div><label for="calc-ot-100" class="block text-sm font-medium">Horas Extras 100%</label><input type="number" id="calc-ot-100" value="0" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t dark:border-gray-700">
+                            <div>
+                                <h4 class="font-semibold mb-2">Outros Proventos</h4>
+                                <div id="custom-proventos-list" class="space-y-2 mb-2"></div>
+                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nome"><input type="text" id="new-provento-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Valor"></div>
+                                <button id="add-provento-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Adicionar Provento</button>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">Outros Descontos</h4>
+                                <div id="custom-discounts-list" class="space-y-2 mb-2"></div>
+                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nome"><input type="text" id="new-discount-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Valor"></div>
+                                <button id="add-discount-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Adicionar Desconto</button>
+                            </div>
+                        </div>
+                        <button id="calculate-salary-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Calcular</button>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-2">
+                        <h4 class="text-lg font-semibold text-center mb-4">Holerite</h4>
+                        <div class="border-b dark:border-gray-700 pb-2 space-y-1">
+                            <div class="flex justify-between text-sm"><p>Salário Base:</p><p id="res-base-salary">R$ 0,00</p></div>
+                            <div class="flex justify-between text-sm"><p>Horas Extras (50%):</p><p id="res-ot-50">R$ 0,00</p></div>
+                            <div class="flex justify-between text-sm"><p>Horas Extras (100%):</p><p id="res-ot-100">R$ 0,00</p></div>
+                            <div class="flex justify-between text-sm"><p>D.S.R sobre H.E.:</p><p id="res-dsr">R$ 0,00</p></div>
+                            <div id="res-custom-proventos-list"></div>
+                        </div>
+                        <div class="flex justify-between font-bold pt-1"><p>Total de Proventos:</p><p id="res-total-gross">R$ 0,00</p></div>
+                        <div class="border-b dark:border-gray-700 pt-3 pb-2 space-y-1">
+                            <div class="flex justify-between text-sm text-red-600 dark:text-red-400"><p>INSS:</p><p id="res-inss">R$ 0,00</p></div>
+                            <div class="flex justify-between text-sm text-red-600 dark:text-red-400"><p>IRRF:</p><p id="res-irrf">R$ 0,00</p></div>
+                            <div id="res-custom-discounts-list"></div>
+                        </div>
+                        <div class="flex justify-between font-bold pt-1 text-red-600 dark:text-red-400"><p>Total de Descontos:</p><p id="res-total-discounts">R$ 0,00</p></div>
+                        <div class="pt-3 text-center">
+                            <p class="text-sm font-medium">Salário Líquido:</p><p id="res-net-salary" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">R$ 0,00</p>
+                        </div>
+                        <div class="pt-3 border-t dark:border-gray-700 text-center text-xs">
+                            <p>FGTS (não descontado): <span id="res-fgts" class="font-medium">R$ 0,00</span></p>
+                            <p>Total de Horas Trabalhadas: <span id="res-total-hours" class="font-medium">220h</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="reports-content" class="tab-content hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Relatórios Visuais</h3>
+                    <div class="flex items-center gap-2">
+                        <label for="report-type" class="text-sm">Tipo:</label>
+                        <select id="report-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="income-vs-expenses">Renda vs Despesas</option><option value="expenses-by-category">Despesas por Categoria</option><option value="income-breakdown">Detalhamento da Renda</option></select>
+                        <button id="generate-report-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Gerar</button>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="report-chart"></canvas></div>
+            </div>
             <div id="account-content" class="tab-content hidden">
-                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Gerenciar Conta</h3>
+                <h3 class="text-xl font-semibold mb-4">Gerenciar Conta</h3>
                 <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg">
                     <p class="text-gray-600 dark:text-gray-300">Você está logado com o email:</p>
                     <p id="user-email-display" class="text-lg font-bold text-indigo-700 dark:text-indigo-200"></p>
                 </div>
-
                 <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-                    <h4 class="text-lg font-medium text-gray-800 dark:text-gray-200">Adicionar / Alterar Senha</h4>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Se você fez login com o Google, pode adicionar uma senha aqui para também ter a opção de acessar com email e senha.</p>
+                    <h4 class="text-lg font-medium">Adicionar / Alterar Senha</h4>
+                    <p class="text-sm text-gray-500 mt-1">Se você fez login com o Google, adicione uma senha para ter um método de login alternativo.</p>
                     <div class="mt-4 max-w-sm">
-                        <label for="new-password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nova Senha (mínimo 6 caracteres)</label>
+                        <label for="new-password" class="block text-sm font-medium mb-1">Nova Senha (mínimo 6 caracteres)</label>
                         <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="********">
-                        <button id="save-password-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Salvar Nova Senha</button>
+                        <button id="save-password-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar Nova Senha</button>
                         <p id="password-feedback" class="text-sm mt-2 text-center"></p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50"></div>
-        <div id="expense-modal" class="modal hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50"></div>
-        <div id="goal-modal" class="modal hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50"></div>
-        <div id="investment-modal" class="modal hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50"></div>
+        <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+                <button id="close-income-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+                <h3 class="text-lg font-bold mb-4">Adicionar Renda</h3>
+                <div class="space-y-3">
+                    <input type="text" id="income-source" placeholder="Fonte da Renda" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="income-amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="income-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="fixed">Fixo</option><option value="variable">Variável</option><option value="extra">Extra</option></select>
+                    <input type="date" id="income-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
+                        <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="expense-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+                <button id="close-expense-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+                <h3 class="text-lg font-bold mb-4">Adicionar Despesa</h3>
+                <div class="space-y-3">
+                    <input type="text" id="expense-description" placeholder="Descrição" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="expense-amount" placeholder="Valor" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex gap-2 items-end">
+                        <select id="expense-category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <button id="new-category-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center" title="Nova Categoria"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="new-category-input-group" class="hidden flex gap-2">
+                        <input type="text" id="new-category-name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nome da Nova Categoria">
+                        <button id="save-new-category-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+                    </div>
+                    <select id="expense-payment" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="debit">Débito</option><option value="credit">Crédito</option><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option></select>
+                    <div id="installments-group" class="hidden"><label class="text-sm">Parcelas</label><input type="number" id="expense-installments" value="1" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <input type="date" id="expense-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
+                        <button id="save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="goal-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+                <button id="close-goal-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+                <h3 class="text-lg font-bold mb-4">Adicionar Meta</h3>
+                <div class="space-y-3">
+                    <input type="text" id="goal-name" placeholder="Nome da Meta" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="goal-target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="goal-current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" id="goal-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button id="cancel-goal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
+                        <button id="save-goal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="investment-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+                <button id="close-investment-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+                <h3 class="text-lg font-bold mb-4">Adicionar Investimento</h3>
+                <div class="space-y-3">
+                    <input type="text" id="investment-description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="investment-amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="investment-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="treasury">Tesouro Direto</option><option value="cdb">CDB/LCI/LCA</option><option value="stocks">Ações</option><option value="fiis">FIIs</option><option value="funds">Fundos</option><option value="savings">Poupança</option></select>
+                    <input type="text" id="investment-yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="date" id="investment-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button id="cancel-investment" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Cancelar</button>
+                        <button id="save-investment" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
