@@ -1,6 +1,7 @@
 var incomes = [], expenses = [], goals = [], investments = [], reportChartInstance;
 var expenseCategories = {};
 var customDiscounts = [];
+var customProventos = [];
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
 
@@ -44,6 +45,17 @@ function loadData() {
         renderCustomDiscounts();
     }
 
+    const savedProventos = localStorage.getItem('customProventos');
+    if (savedProventos) {
+        customProventos = JSON.parse(savedProventos);
+        renderCustomProventos();
+    }
+
+    const savedSubtitle = localStorage.getItem('headerSubtitle');
+    if (savedSubtitle) {
+        document.getElementById('header-subtitle').textContent = savedSubtitle;
+    }
+
     if (!goals.find(g => g.name === "Reserva de Emergência")) goals.push({ id: generateId(), name: "Reserva de Emergência", target: 10000, current: 0, deadline: '' });
     if (!goals.find(g => g.name === "Economia Mensal")) goals.push({ id: generateId(), name: "Economia Mensal", target: 1000, current: 0, deadline: '' });
 }
@@ -52,6 +64,7 @@ function saveData() {
     localStorage.setItem('financialData', JSON.stringify({ incomes, expenses, goals, investments }));
     localStorage.setItem('expenseCategories', JSON.stringify(expenseCategories));
     localStorage.setItem('customDiscounts', JSON.stringify(customDiscounts));
+    localStorage.setItem('customProventos', JSON.stringify(customProventos));
 }
 
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2); }
@@ -158,8 +171,14 @@ function updateTable(type, data, renderRowFn) {
     data.forEach(item => tableBody.appendChild(renderRowFn(item)));
     document.querySelectorAll(`.edit-${type}`).forEach(btn => btn.addEventListener('click', (e) => handleEdit(type, e.currentTarget.dataset.id)));
     document.querySelectorAll(`.delete-${type}`).forEach(btn => btn.addEventListener('click', (e) => handleDelete(type, e.currentTarget.dataset.id)));
+    
+    // NOVO: Adiciona o listener para os botões de calculadora na tabela de renda
+    if (type === 'income') {
+        document.querySelectorAll('.calc-income-btn').forEach(btn => btn.addEventListener('click', (e) => sendIncomeToCalculator(e.currentTarget.dataset.id)));
+    }
 }
 
+// MUDANÇA AQUI: Adicionamos o novo botão de calculadora ao final da linha
 function updateIncomeTable() {
     const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
     const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
@@ -167,7 +186,22 @@ function updateIncomeTable() {
     updateTable('income', currentData, item => {
         const row = document.createElement('tr');
         if (item.type === 'fixed') row.classList.add('income-fixed-row'); else if (item.type === 'variable') row.classList.add('income-variable-row'); else if (item.type === 'extra') row.classList.add('income-extra-row');
-        row.innerHTML = `<td class="px-6 py-4 whitespace-nowrap">${item.source}</td><td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td><td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || item.type}</td><td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td><td class="px-6 py-4 whitespace-nowrap text-right no-print"><button class="edit-income text-indigo-600 hover:text-indigo-400" data-id="${item.id}"><i class="fas fa-edit"></i></button><button class="delete-income ml-4 text-red-600 hover:text-red-400" data-id="${item.id}"><i class="fas fa-trash"></i></button></td>`;
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">${item.source}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || item.type}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right no-print">
+                <button class="calc-income-btn text-blue-600 hover:text-blue-400" data-id="${item.id}" title="Calcular Salário Líquido com esta Renda">
+                    <i class="fas fa-calculator"></i>
+                </button>
+                <button class="edit-income ml-4 text-indigo-600 hover:text-indigo-400" data-id="${item.id}" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-income ml-4 text-red-600 hover:text-red-400" data-id="${item.id}" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>`;
         return row;
     });
 }
@@ -321,6 +355,7 @@ function setupEventListeners() {
         }
     });
     document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
+    document.getElementById('add-provento-btn').addEventListener('click', addCustomProvento);
     document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
     document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
 }
@@ -357,7 +392,6 @@ function addOrUpdateItem(type, id) {
                     expenses[index] = { ...expenses[index], ...itemData };
                 }
             } else {
-                // MUDANÇA AQUI: Cria um ID de grupo para as parcelas
                 const groupId = (installments > 1) ? generateId() : null;
                 const originalDate = new Date(itemData.date + 'T00:00:00');
                 
@@ -366,7 +400,6 @@ function addOrUpdateItem(type, id) {
                     newExpense.id = generateId();
                     newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
                     
-                    // MUDANÇA AQUI: Adiciona o ID do grupo a cada parcela
                     if (groupId) {
                         newExpense.installmentGroupId = groupId;
                     }
@@ -477,14 +510,12 @@ function handleEdit(type, id) {
     openModal(modalId);
 }
 
-// MUDANÇA PRINCIPAL AQUI: A função inteira foi reescrita com a nova lógica
 function handleDelete(type, id) {
     const dataArray = window[`${type}s`];
     const item = dataArray.find(i => i.id === id);
 
     if (!item) return;
 
-    // Lógica para despesas parceladas
     if (type === 'expense' && item.installmentGroupId) {
         if (confirm("Este item é uma parcela. Deseja apagar TODAS as parcelas relacionadas a esta compra?")) {
             expenses = expenses.filter(exp => exp.installmentGroupId !== item.installmentGroupId);
@@ -494,12 +525,10 @@ function handleDelete(type, id) {
             }
         }
     } 
-    // Lógica para metas padrão
     else if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
         alert('Metas padrão não podem ser excluídas.');
         return;
     }
-    // Lógica padrão para todos os outros casos
     else {
         if (confirm('Tem certeza que deseja excluir este item?')) {
             window[`${type}s`] = dataArray.filter(i => i.id !== id);
@@ -508,7 +537,6 @@ function handleDelete(type, id) {
     
     updateDashboard();
 }
-
 
 function editHeaderSubtitle() {
     const h2 = document.getElementById('header-subtitle');
@@ -541,9 +569,63 @@ function saveHeaderSubtitle(inputElement) {
     newH2.addEventListener('click', editHeaderSubtitle);
 }
 
+// NOVO: Função para enviar renda para a calculadora
+function sendIncomeToCalculator(id) {
+    const incomeItem = incomes.find(item => item.id === id);
+    if (!incomeItem) return;
+
+    // Formata o número para o padrão brasileiro (com vírgula) para o campo de input
+    const formattedAmount = String(incomeItem.amount).replace('.', ',');
+    document.getElementById('calc-base-salary').value = formattedAmount;
+
+    // Simula o clique na aba da calculadora para mudar a visualização
+    document.querySelector('button[data-tab="calculator"]').click();
+
+    // Roda o cálculo automaticamente
+    calculateNetSalary();
+
+    // Opcional: Rola a página até a calculadora para o usuário ver o resultado
+    document.getElementById('calculator-content').scrollIntoView({ behavior: 'smooth' });
+}
+
 // =======================================================
 // SEÇÃO DA CALCULADORA DE SALÁRIO
 // =======================================================
+
+function renderCustomProventos() {
+    const list = document.getElementById('custom-proventos-list');
+    list.innerHTML = '';
+    customProventos.forEach((provento, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded';
+        div.innerHTML = `<span class="text-sm">${provento.name} - ${formatCurrency(provento.value)}</span><button class="delete-provento-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
+        list.appendChild(div);
+    });
+    document.querySelectorAll('.delete-provento-btn').forEach(btn => btn.addEventListener('click', deleteCustomProvento));
+}
+
+function addCustomProvento() {
+    const nameInput = document.getElementById('new-provento-name');
+    const valueInput = document.getElementById('new-provento-value');
+    const name = nameInput.value.trim();
+    const value = parseBrazilianNumber(valueInput.value);
+    if (name && !isNaN(value) && value > 0) {
+        customProventos.push({ name, value });
+        saveData();
+        renderCustomProventos();
+        nameInput.value = '';
+        valueInput.value = '';
+    } else {
+        alert('Por favor, preencha o nome e um valor válido para o provento.');
+    }
+}
+
+function deleteCustomProvento(event) {
+    const index = event.currentTarget.dataset.index;
+    customProventos.splice(index, 1);
+    saveData();
+    renderCustomProventos();
+}
 
 function renderCustomDiscounts() {
     const list = document.getElementById('custom-discounts-list');
@@ -554,7 +636,9 @@ function renderCustomDiscounts() {
         div.innerHTML = `<span class="text-sm">${discount.name} - ${formatCurrency(discount.value)}</span><button class="delete-discount-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
         list.appendChild(div);
     });
-    document.querySelectorAll('.delete-discount-btn').forEach(btn => btn.addEventListener('click', deleteCustomDiscount));
+    document.querySelectorAll('.delete-discount-btn').forEach(btn => {
+        btn.addEventListener('click', deleteCustomDiscount);
+    });
 }
 
 function addCustomDiscount() {
@@ -621,24 +705,42 @@ function calculateNetSalary() {
     const ot50hours = parseFloat(document.getElementById('calc-ot-50').value) || 0;
     const ot100hours = parseFloat(document.getElementById('calc-ot-100').value) || 0;
     const dependents = parseInt(document.getElementById('calc-dependents').value) || 0;
+    
     const totalCustomDiscounts = customDiscounts.reduce((sum, d) => sum + d.value, 0);
-    const normalHourValue = baseSalary / workload;
+    const totalCustomProventos = customProventos.reduce((sum, p) => sum + p.value, 0);
+
+    const normalHourValue = baseSalary > 0 && workload > 0 ? baseSalary / workload : 0;
     const totalOt50 = ot50hours * (normalHourValue * 1.5);
     const totalOt100 = ot100hours * (normalHourValue * 2.0);
     const dsr = (totalOt50 + totalOt100) / 6; 
-    const totalGross = baseSalary + totalOt50 + totalOt100 + dsr;
+    const totalGross = baseSalary + totalOt50 + totalOt100 + dsr + totalCustomProventos;
+
     const inss = calculateINSS(totalGross);
     const irrf = calculateIRRF(totalGross, inss, dependents);
     const totalDiscounts = inss + irrf + totalCustomDiscounts;
+
     const netSalary = totalGross - totalDiscounts;
     const fgts = totalGross * 0.08;
+    const totalHours = workload + ot50hours + ot100hours;
+
     document.getElementById('res-base-salary').textContent = formatCurrency(baseSalary);
     document.getElementById('res-ot-50').textContent = formatCurrency(totalOt50);
     document.getElementById('res-ot-100').textContent = formatCurrency(totalOt100);
     document.getElementById('res-dsr').textContent = formatCurrency(dsr);
+    
+    const customProventosResultList = document.getElementById('res-custom-proventos-list');
+    customProventosResultList.innerHTML = '';
+    customProventos.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between text-sm';
+        div.innerHTML = `<p>${p.name}</p><p>${formatCurrency(p.value)}</p>`;
+        customProventosResultList.appendChild(div);
+    });
+
     document.getElementById('res-total-gross').textContent = formatCurrency(totalGross);
     document.getElementById('res-inss').textContent = formatCurrency(inss > 0 ? -inss : 0);
     document.getElementById('res-irrf').textContent = formatCurrency(irrf > 0 ? -irrf : 0);
+    
     const customDiscountsResultList = document.getElementById('res-custom-discounts-list');
     customDiscountsResultList.innerHTML = '';
     customDiscounts.forEach(d => {
@@ -647,7 +749,9 @@ function calculateNetSalary() {
         div.innerHTML = `<p>${d.name}</p><p class="text-red-600 dark:text-red-400">${formatCurrency(-d.value)}</p>`;
         customDiscountsResultList.appendChild(div);
     });
+
     document.getElementById('res-total-discounts').textContent = formatCurrency(totalDiscounts > 0 ? -totalDiscounts : 0);
     document.getElementById('res-net-salary').textContent = formatCurrency(netSalary);
     document.getElementById('res-fgts').textContent = formatCurrency(fgts);
+    document.getElementById('res-total-hours').textContent = `${totalHours}h`;
 }
