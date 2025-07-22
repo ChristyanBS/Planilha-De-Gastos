@@ -1,79 +1,399 @@
+// INICIALIZAÇÃO E VARIÁVEIS GLOBAIS
+// =======================================================
+// Conexão com o Firebase (já inicializado no HTML)
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser; // Guarda as informações do usuário logado
+
+// Variáveis para os dados do aplicativo
 var incomes = [], expenses = [], goals = [], investments = [], reportChartInstance;
 var expenseCategories = {};
 var customDiscounts = [];
 var customProventos = [];
+
+// Variáveis de estado da UI
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
 
+
+// PONTO DE ENTRADA PRINCIPAL
+// =======================================================
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('year-select').value = currentYear;
-    loadData();
-    document.getElementById('month-select').value = currentMonth;
-    if (localStorage.getItem('theme') === 'dark') {
-        document.documentElement.classList.add('dark');
-    }
-    updateThemeButton(localStorage.getItem('theme') || 'light');
-    updateDashboard();
-    setupEventListeners();
-    document.querySelector('.tab-btn[data-tab="income"]').click();
+    // Escuta mudanças no estado de autenticação
+    auth.onAuthStateChanged(async user => {
+        if (user) {
+            // Usuário está logado
+            currentUser = user;
+            
+            // Mostra o conteúdo principal da página
+            document.getElementById('main-container').style.display = 'block';
+
+            // Carrega todos os dados do Firestore
+            await loadDataFromFirestore();
+            
+            // Configura a UI com os dados carregados
+            document.getElementById('year-select').value = currentYear;
+            document.getElementById('month-select').value = currentMonth;
+            if (localStorage.getItem('theme') === 'dark') { // O tema pode continuar no localStorage
+                document.documentElement.classList.add('dark');
+            }
+            updateThemeButton(localStorage.getItem('theme') || 'light');
+            
+            // Atualiza o painel e configura os botões
+            updateDashboard();
+            setupEventListeners();
+            document.querySelector('.tab-btn[data-tab="income"]').click();
+
+        } else {
+            // Usuário não está logado, redireciona para a tela de login
+            window.location.href = 'login.html';
+        }
+    });
 });
 
-function loadData() {
-    const savedData = localStorage.getItem('financialData');
-    if (savedData) {
-        const data = JSON.parse(savedData);
-        incomes = data.incomes || [];
-        expenses = data.expenses || [];
-        goals = data.goals || [];
-        investments = data.investments || [];
-    }
+
+// FUNÇÕES DE BANCO DE DADOS (FIRESTORE)
+// =======================================================
+async function loadDataFromFirestore() {
+    if (!currentUser) return;
     
-    const savedCategories = localStorage.getItem('expenseCategories');
-    if (savedCategories) {
-        expenseCategories = JSON.parse(savedCategories);
+    const userDocRef = db.collection('users').doc(currentUser.uid);
+
+    // Carrega dados das sub-coleções
+    const loadCollection = async (collectionName) => {
+        const snapshot = await userDocRef.collection(collectionName).get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
+
+    [incomes, expenses, goals, investments] = await Promise.all([
+        loadCollection('incomes'),
+        loadCollection('expenses'),
+        loadCollection('goals'),
+        loadCollection('investments')
+    ]);
+
+    // Carrega configurações do usuário (categorias, etc.)
+    const userSettingsDoc = await userDocRef.get();
+    if (userSettingsDoc.exists) {
+        const settings = userSettingsDoc.data();
+        document.getElementById('header-subtitle').textContent = settings.headerSubtitle || `${currentUser.displayName || currentUser.email}`;
+        customDiscounts = settings.customDiscounts || [];
+        customProventos = settings.customProventos || [];
+        expenseCategories = settings.expenseCategories || {
+            housing: 'Moradia', food: 'Alimentação', transport: 'Transporte',
+            health: 'Saúde', education: 'Educação', entertainment: 'Lazer',
+            other: 'Outros'
+        };
     } else {
+        // Se for o primeiro login, define valores padrão
+        document.getElementById('header-subtitle').textContent = `${currentUser.displayName || currentUser.email}`;
         expenseCategories = {
             housing: 'Moradia', food: 'Alimentação', transport: 'Transporte',
             health: 'Saúde', education: 'Educação', entertainment: 'Lazer',
             other: 'Outros'
         };
     }
-
-    const savedDiscounts = localStorage.getItem('customDiscounts');
-    if (savedDiscounts) {
-        customDiscounts = JSON.parse(savedDiscounts);
-        renderCustomDiscounts();
+    
+    // Garante que as metas padrão existam se ainda não tiverem sido criadas
+    if (!goals.find(g => g.name === "Reserva de Emergência")) {
+        const newGoal = { name: "Reserva de Emergência", target: 10000, current: 0, deadline: '' };
+        const docRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(newGoal);
+        goals.push({id: docRef.id, ...newGoal});
+    }
+    if (!goals.find(g => g.name === "Economia Mensal")) {
+        const newGoal = { name: "Economia Mensal", target: 1000, current: 0, deadline: '' };
+        const docRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(newGoal);
+        goals.push({id: docRef.id, ...newGoal});
     }
 
-    const savedProventos = localStorage.getItem('customProventos');
-    if (savedProventos) {
-        customProventos = JSON.parse(savedProventos);
-        renderCustomProventos();
-    }
-
-    const savedSubtitle = localStorage.getItem('headerSubtitle');
-    if (savedSubtitle) {
-        document.getElementById('header-subtitle').textContent = savedSubtitle;
-    }
-
-    if (!goals.find(g => g.name === "Reserva de Emergência")) goals.push({ id: generateId(), name: "Reserva de Emergência", target: 10000, current: 0, deadline: '' });
-    if (!goals.find(g => g.name === "Economia Mensal")) goals.push({ id: generateId(), name: "Economia Mensal", target: 1000, current: 0, deadline: '' });
+    renderCustomDiscounts();
+    renderCustomProventos();
 }
 
-function saveData() {
-    localStorage.setItem('financialData', JSON.stringify({ incomes, expenses, goals, investments }));
-    localStorage.setItem('expenseCategories', JSON.stringify(expenseCategories));
-    localStorage.setItem('customDiscounts', JSON.stringify(customDiscounts));
-    localStorage.setItem('customProventos', JSON.stringify(customProventos));
+async function addOrUpdateItem(type, id) {
+    const itemData = {};
+    let isValid = false;
+    const getNumericValue = (elementId) => parseBrazilianNumber(document.getElementById(elementId).value);
+
+    if (type === 'income') {
+        itemData.source = document.getElementById('income-source').value.trim();
+        itemData.amount = getNumericValue('income-amount');
+        itemData.type = document.getElementById('income-type').value;
+        itemData.date = document.getElementById('income-date').value;
+        if (itemData.source && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
+    } else if (type === 'goal') {
+        itemData.name = document.getElementById('goal-name').value.trim();
+        itemData.target = getNumericValue('goal-target');
+        itemData.current = getNumericValue('goal-current') || 0;
+        itemData.deadline = document.getElementById('goal-deadline').value;
+        if (itemData.name && !isNaN(itemData.target) && itemData.target > 0) isValid = true;
+    } else if (type === 'investment') {
+        itemData.description = document.getElementById('investment-description').value.trim();
+        itemData.amount = getNumericValue('investment-amount');
+        itemData.type = document.getElementById('investment-type').value;
+        itemData.yield = getNumericValue('investment-yield') || 0;
+        itemData.date = document.getElementById('investment-date').value;
+        if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
+    } else if (type === 'expense') {
+        itemData.description = document.getElementById('expense-description').value.trim();
+        itemData.amount = getNumericValue('expense-amount');
+        itemData.category = document.getElementById('expense-category').value;
+        itemData.payment = document.getElementById('expense-payment').value;
+        itemData.date = document.getElementById('expense-date').value;
+        const installments = parseInt(document.getElementById('expense-installments').value) || 1;
+
+        if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) {
+            try {
+                if (id) {
+                    const originalItem = expenses.find(item => item.id === id);
+                    const isInstallment = /\(\d+\/\d+\)$/.test(originalItem.description);
+                    itemData.description = isInstallment ? originalItem.description : itemData.description;
+                    await db.collection('users').doc(currentUser.uid).collection('expenses').doc(id).update(itemData);
+                    const index = expenses.findIndex(item => item.id === id);
+                    if (index > -1) expenses[index] = { ...expenses[index], ...itemData };
+                } else {
+                    const groupId = (installments > 1) ? Date.now().toString(36) : null;
+                    const originalDate = new Date(itemData.date + 'T00:00:00');
+                    for (let i = 1; i <= installments; i++) {
+                        const newExpense = { ...itemData };
+                        newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
+                        if (groupId) newExpense.installmentGroupId = groupId;
+                        
+                        const installmentDate = new Date(originalDate);
+                        installmentDate.setMonth(originalDate.getMonth() + (i - 1));
+                        newExpense.date = installmentDate.toISOString().split('T')[0];
+                        
+                        const docRef = await db.collection('users').doc(currentUser.uid).collection('expenses').add(newExpense);
+                        expenses.push({ id: docRef.id, ...newExpense });
+                    }
+                }
+                updateDashboard();
+                closeModal('expense-modal');
+            } catch(e) { console.error("Erro ao salvar despesa: ", e); alert("Falha ao salvar despesa."); }
+        } else {
+            alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+        }
+        return;
+    }
+
+    if (!isValid) {
+        alert('Por favor, preencha todos os campos obrigatórios corretamente.\nVerifique se o valor numérico é maior que zero.');
+        return;
+    }
+
+    const collectionName = `${type}s`;
+    const dataArray = window[collectionName];
+    
+    try {
+        if (id) {
+            await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(id).update(itemData);
+            const index = dataArray.findIndex(item => item.id === id);
+            if(index > -1) dataArray[index] = { ...dataArray[index], ...itemData };
+        } else {
+            const docRef = await db.collection('users').doc(currentUser.uid).collection(collectionName).add(itemData);
+            dataArray.push({ id: docRef.id, ...itemData });
+        }
+        updateDashboard();
+        closeModal(`${type}-modal`);
+    } catch(e) {
+        console.error(`Erro ao salvar ${type}: `, e);
+        alert(`Falha ao salvar ${type}.`);
+    }
 }
 
-function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2); }
+async function handleDelete(type, id) {
+    const dataArray = window[`${type}s`];
+    const item = dataArray.find(i => i.id === id);
+    if (!item) return;
+
+    try {
+        const collectionName = `${type}s`;
+        if (type === 'expense' && item.installmentGroupId) {
+            if (confirm("Este item é uma parcela. Deseja apagar TODAS as parcelas relacionadas a esta compra?")) {
+                const batch = db.batch();
+                const relatedExpenses = expenses.filter(exp => exp.installmentGroupId === item.installmentGroupId);
+                relatedExpenses.forEach(exp => {
+                    const docRef = db.collection('users').doc(currentUser.uid).collection(collectionName).doc(exp.id);
+                    batch.delete(docRef);
+                });
+                await batch.commit();
+                expenses = expenses.filter(exp => exp.installmentGroupId !== item.installmentGroupId);
+            } else {
+                return;
+            }
+        } else if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
+            alert('Metas padrão não podem ser excluídas.');
+            return;
+        } else {
+            if (confirm('Tem certeza que deseja excluir este item?')) {
+                await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(id).delete();
+                window[`${type}s`] = dataArray.filter(i => i.id !== id);
+            }
+        }
+        updateDashboard();
+    } catch(e) {
+        console.error(`Erro ao apagar ${type}: `, e);
+        alert(`Falha ao apagar ${type}.`);
+    }
+}
+
+async function saveUserSettings() {
+    if(!currentUser) return;
+    const settings = {
+        headerSubtitle: document.getElementById('header-subtitle').textContent,
+        expenseCategories,
+        customDiscounts,
+        customProventos
+    };
+    await db.collection('users').doc(currentUser.uid).set(settings, { merge: true });
+}
+
+
+// FUNÇÕES DA INTERFACE
+// =======================================================
+function setupEventListeners() {
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        auth.signOut();
+    });
+
+    document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
+
+    document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+        this.classList.add('active-tab');
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+        document.getElementById(`${this.dataset.tab}-content`).classList.remove('hidden');
+        if (this.dataset.tab === 'reports' || this.dataset.tab === 'calculator') {
+            document.getElementById('month-select').classList.add('hidden');
+            document.getElementById('year-select').classList.add('hidden');
+        } else {
+            document.getElementById('month-select').classList.remove('hidden');
+            document.getElementById('year-select').classList.remove('hidden');
+        }
+        if (this.dataset.tab === 'reports') generateReport();
+    }));
+    document.getElementById('print-btn').addEventListener('click', () => window.print());
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+        if (confirm('Tem certeza? Isso vai apagar os dados DESTE MÊS para renda, despesas e investimentos.')) {
+            const batch = db.batch();
+            const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
+            
+            incomes.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('incomes').doc(item.id)));
+            expenses.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('expenses').doc(item.id)));
+            investments.filter(predicate).forEach(item => batch.delete(db.collection('users').doc(currentUser.uid).collection('investments').doc(item.id)));
+            
+            await batch.commit();
+
+            incomes = incomes.filter(item => !predicate(item));
+            expenses = expenses.filter(item => !predicate(item));
+            investments = investments.filter(item => !predicate(item));
+            
+            updateDashboard();
+        }
+    });
+    document.getElementById('clear-all-btn').addEventListener('click', async () => {
+        if (confirm('ATENÇÃO! Isso apagará TODOS os seus dados permanentemente. Deseja continuar?')) {
+            alert("Função de apagar tudo em desenvolvimento. Por enquanto, apague os itens manualmente.");
+        }
+    });
+    document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+    document.getElementById('month-select').addEventListener('change', (e) => { currentMonth = parseInt(e.target.value); updateDashboard(); });
+    document.getElementById('year-select').addEventListener('change', (e) => { currentYear = parseInt(e.target.value); updateDashboard(); });
+    
+    ['income', 'expense', 'goal', 'investment'].forEach(type => {
+        document.getElementById(`add-${type}-btn`).addEventListener('click', () => handleEdit(type, null));
+        document.getElementById(`save-${type}`).addEventListener('click', function() { addOrUpdateItem(type, this.dataset.id); });
+        document.getElementById(`close-${type}-modal`).addEventListener('click', () => closeModal(`${type}-modal`));
+        document.getElementById(`cancel-${type}`).addEventListener('click', () => closeModal(`${type}-modal`));
+    });
+
+    document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+    document.getElementById('expense-payment').addEventListener('change', function() {
+        document.getElementById('installments-group').classList.toggle('hidden', this.value !== 'credit');
+        if (this.value !== 'credit') document.getElementById('expense-installments').value = 1;
+    });
+    
+    document.getElementById('new-category-btn').addEventListener('click', () => document.getElementById('new-category-input-group').classList.toggle('hidden'));
+    document.getElementById('save-new-category-btn').addEventListener('click', async () => {
+        const newCategoryName = document.getElementById('new-category-name').value.trim();
+        if (newCategoryName) {
+            const newCategoryKey = newCategoryName.toLowerCase().replace(/\s+/g, '_').replace(/[^\w-]/g, '');
+            if (expenseCategories[newCategoryKey]) {
+                alert('Uma categoria com um nome similar já existe.');
+                return;
+            }
+            expenseCategories[newCategoryKey] = newCategoryName;
+            await saveUserSettings();
+            populateCategoryDropdown();
+            document.getElementById('expense-category').value = newCategoryKey;
+            document.getElementById('new-category-name').value = '';
+            document.getElementById('new-category-input-group').classList.add('hidden');
+        }
+    });
+    
+    document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
+    document.getElementById('add-provento-btn').addEventListener('click', addCustomProvento);
+    document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
+}
+
+function updateDashboard() {
+    const totals = calculateTotals();
+    document.getElementById('total-income').textContent = formatCurrency(totals.totalIncome);
+    document.getElementById('total-expenses').textContent = formatCurrency(totals.totalExpenses);
+    document.getElementById('available-balance').textContent = formatCurrency(totals.availableBalance);
+    document.getElementById('month-savings').textContent = formatCurrency(totals.monthSavings);
+    document.getElementById('total-invested').textContent = formatCurrency(totals.totalInvestedThisMonth);
+    document.getElementById('fixed-income').textContent = formatCurrency(totals.fixedIncome);
+    document.getElementById('variable-income').textContent = formatCurrency(totals.variableIncome);
+    document.getElementById('extra-income').textContent = formatCurrency(totals.extraIncome);
+    document.getElementById('home-expenses').textContent = formatCurrency(totals.homeExpenses);
+    document.getElementById('food-expenses').textContent = formatCurrency(totals.foodExpenses);
+    document.getElementById('transport-expenses').textContent = formatCurrency(totals.transportExpenses);
+    document.getElementById('health-expenses').textContent = formatCurrency(totals.healthExpenses);
+    document.getElementById('education-expenses').textContent = formatCurrency(totals.educationExpenses);
+    document.getElementById('entertainment-expenses').textContent = formatCurrency(totals.entertainmentExpenses);
+    document.getElementById('other-expenses').textContent = formatCurrency(totals.otherExpenses);
+    document.getElementById('total-investment').textContent = formatCurrency(totals.totalInvested);
+    document.getElementById('expected-return').textContent = formatCurrency(totals.expectedReturn);
+    document.getElementById('monthly-return').textContent = formatCurrency(totals.monthlyReturn);
+    updateIncomeTable();
+    updateExpensesTable();
+    updateGoalsTable(totals.monthSavings, totals.totalInvested);
+    updateInvestmentsTable();
+}
+
+async function editHeaderSubtitle() {
+    const h2 = document.getElementById('header-subtitle');
+    const currentText = h2.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.className = 'text-xl md:text-2xl bg-transparent border-b-2 border-indigo-400 focus:outline-none text-center';
+    h2.replaceWith(input);
+    input.focus();
+    input.addEventListener('blur', () => saveHeaderSubtitle(input));
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') saveHeaderSubtitle(input);
+    });
+}
+
+async function saveHeaderSubtitle(inputElement) {
+    const newText = inputElement.value.trim();
+    const newH2 = document.createElement('h2');
+    newH2.id = 'header-subtitle';
+    newH2.className = 'text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity';
+    newH2.title = 'Clique para editar';
+    newH2.textContent = newText || `${currentUser.displayName || currentUser.email}`;
+    inputElement.replaceWith(newH2);
+    newH2.addEventListener('click', editHeaderSubtitle);
+    await saveUserSettings();
+}
+
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); }
 function parseBrazilianNumber(stringValue) {
     if (!stringValue || typeof stringValue !== 'string') return NaN;
     return parseFloat(stringValue.replace(/\./g, '').replace(',', '.'));
 }
-
 function updateThemeButton(theme) {
     const btn = document.getElementById('theme-toggle-btn');
     if (!btn) return;
@@ -89,7 +409,6 @@ function updateThemeButton(theme) {
         icon.classList.add('fa-moon');
     }
 }
-
 function toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark');
     const theme = isDark ? 'dark' : 'light';
@@ -99,7 +418,6 @@ function toggleTheme() {
         generateReport();
     }
 }
-
 function calculateTotals() {
     const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
     const currentIncomes = incomes.filter(predicate);
@@ -127,39 +445,10 @@ function calculateTotals() {
         totalInvestedThisMonth, totalInvested: totalInvestedOverall, expectedReturn, monthlyReturn: expectedReturn / 12, availableBalance, monthSavings: monthSavings > 0 ? monthSavings : 0
     };
 }
-
-function updateDashboard() {
-    const totals = calculateTotals();
-    document.getElementById('total-income').textContent = formatCurrency(totals.totalIncome);
-    document.getElementById('total-expenses').textContent = formatCurrency(totals.totalExpenses);
-    document.getElementById('available-balance').textContent = formatCurrency(totals.availableBalance);
-    document.getElementById('month-savings').textContent = formatCurrency(totals.monthSavings);
-    document.getElementById('total-invested').textContent = formatCurrency(totals.totalInvestedThisMonth);
-    document.getElementById('fixed-income').textContent = formatCurrency(totals.fixedIncome);
-    document.getElementById('variable-income').textContent = formatCurrency(totals.variableIncome);
-    document.getElementById('extra-income').textContent = formatCurrency(totals.extraIncome);
-    document.getElementById('home-expenses').textContent = formatCurrency(totals.homeExpenses);
-    document.getElementById('food-expenses').textContent = formatCurrency(totals.foodExpenses);
-    document.getElementById('transport-expenses').textContent = formatCurrency(totals.transportExpenses);
-    document.getElementById('health-expenses').textContent = formatCurrency(totals.healthExpenses);
-    document.getElementById('education-expenses').textContent = formatCurrency(totals.educationExpenses);
-    document.getElementById('entertainment-expenses').textContent = formatCurrency(totals.entertainmentExpenses);
-    document.getElementById('other-expenses').textContent = formatCurrency(totals.otherExpenses);
-    document.getElementById('total-investment').textContent = formatCurrency(totals.totalInvested);
-    document.getElementById('expected-return').textContent = formatCurrency(totals.expectedReturn);
-    document.getElementById('monthly-return').textContent = formatCurrency(totals.monthlyReturn);
-    updateIncomeTable();
-    updateExpensesTable();
-    updateGoalsTable(totals.monthSavings, totals.totalInvested);
-    updateInvestmentsTable();
-    saveData();
-}
-
 function getPaymentMethodBadge(payment) {
     const labels = { credit: 'Crédito', debit: 'Débito', pix: 'PIX', cash: 'Dinheiro', transfer: 'Transferência' };
     return `<span class="badge badge-${payment}">${labels[payment] || payment}</span>`;
 }
-
 function updateTable(type, data, renderRowFn) {
     const tableBody = document.getElementById(`${type}s-table`);
     tableBody.innerHTML = '';
@@ -172,13 +461,10 @@ function updateTable(type, data, renderRowFn) {
     document.querySelectorAll(`.edit-${type}`).forEach(btn => btn.addEventListener('click', (e) => handleEdit(type, e.currentTarget.dataset.id)));
     document.querySelectorAll(`.delete-${type}`).forEach(btn => btn.addEventListener('click', (e) => handleDelete(type, e.currentTarget.dataset.id)));
     
-    // NOVO: Adiciona o listener para os botões de calculadora na tabela de renda
     if (type === 'income') {
         document.querySelectorAll('.calc-income-btn').forEach(btn => btn.addEventListener('click', (e) => sendIncomeToCalculator(e.currentTarget.dataset.id)));
     }
 }
-
-// MUDANÇA AQUI: Adicionamos o novo botão de calculadora ao final da linha
 function updateIncomeTable() {
     const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
     const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
@@ -205,7 +491,6 @@ function updateIncomeTable() {
         return row;
     });
 }
-
 function updateExpensesTable() {
     const predicate = item => new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear;
     const currentData = expenses.filter(predicate).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -215,7 +500,6 @@ function updateExpensesTable() {
         return row;
     });
 }
-
 function updateGoalsTable(monthSavings, totalInvested) {
     const savingsGoal = goals.find(g => g.name === "Economia Mensal");
     if (savingsGoal) savingsGoal.current = monthSavings;
@@ -238,7 +522,6 @@ function updateGoalsTable(monthSavings, totalInvested) {
         return row;
     });
 }
-
 function updateInvestmentsTable() {
     const allInvestments = [...investments].sort((a,b) => new Date(b.date) - new Date(a.date));
     const typeLabels = { savings: 'Poupança', cdb: 'CDB', 'lci-lca': 'LCI/LCA', funds: 'Fundos', stocks: 'Ações', fiis: 'FIIs', treasury: 'Tesouro' };
@@ -248,7 +531,6 @@ function updateInvestmentsTable() {
         return row;
     });
 }
-
 function populateCategoryDropdown() {
     const select = document.getElementById('expense-category');
     const currentVal = select.value;
@@ -261,7 +543,6 @@ function populateCategoryDropdown() {
     }
     select.value = currentVal;
 }
-
 function generateReport() {
     const ctx = document.getElementById('report-chart').getContext('2d');
     if (reportChartInstance) reportChartInstance.destroy();
@@ -271,7 +552,6 @@ function generateReport() {
     const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     const textColor = isDarkMode ? '#d1d5db' : '#374151';
     let chartConfig = {};
-
     switch (reportType) {
         case 'expenses-by-category':
             chartConfig = { type: 'pie', data: { labels: Object.values(expenseCategories), datasets: [{ label: 'Despesas', data: Object.keys(expenseCategories).map(catKey => expenses.filter(e => e.category === catKey && new Date(e.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(e.date + 'T00:00:00').getFullYear() === currentYear).reduce((sum, e) => sum + e.amount, 0)), backgroundColor: ['#ef4444', '#f97316', '#eab308', '#f59e0b', '#22c55e', '#3b82f6', '#6b7280', '#ec4899', '#84cc16'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: textColor } } } } };
@@ -285,188 +565,23 @@ function generateReport() {
     }
     reportChartInstance = new Chart(ctx, chartConfig);
 }
-
-function setupEventListeners() {
-    document.querySelectorAll('.tab-btn').forEach(button => button.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-        this.classList.add('active-tab');
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-        document.getElementById(`${this.dataset.tab}-content`).classList.remove('hidden');
-        if (this.dataset.tab === 'reports' || this.dataset.tab === 'calculator') {
-            document.getElementById('month-select').classList.add('hidden');
-            document.getElementById('year-select').classList.add('hidden');
-        } else {
-            document.getElementById('month-select').classList.remove('hidden');
-            document.getElementById('year-select').classList.remove('hidden');
-        }
-        if (this.dataset.tab === 'reports') generateReport();
-    }));
-    document.getElementById('print-btn').addEventListener('click', () => window.print());
-    document.getElementById('reset-btn').addEventListener('click', () => {
-        if (confirm('Tem certeza? Isso vai apagar os dados deste mês.')) {
-            const predicate = item => !(new Date(item.date + 'T00:00:00').getMonth() + 1 === currentMonth && new Date(item.date + 'T00:00:00').getFullYear() === currentYear);
-            incomes = incomes.filter(predicate);
-            expenses = expenses.filter(predicate);
-            investments = investments.filter(predicate);
-            updateDashboard();
-        }
-    });
-    document.getElementById('clear-all-btn').addEventListener('click', () => {
-        if (confirm('ATENÇÃO! Isso apagará TODOS os dados. Deseja continuar?')) {
-            localStorage.clear(); location.reload();
-        }
-    });
-    document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
-    document.getElementById('month-select').addEventListener('change', (e) => { currentMonth = parseInt(e.target.value); updateDashboard(); });
-    document.getElementById('year-select').addEventListener('change', (e) => { currentYear = parseInt(e.target.value); updateDashboard(); });
-    ['income', 'expense', 'goal', 'investment'].forEach(type => {
-        document.getElementById(`add-${type}-btn`).addEventListener('click', () => handleEdit(type, null));
-        document.getElementById(`save-${type}`).addEventListener('click', function() { addOrUpdateItem(type, this.dataset.id); });
-        document.getElementById(`close-${type}-modal`).addEventListener('click', () => closeModal(`${type}-modal`));
-        document.getElementById(`cancel-${type}`).addEventListener('click', () => closeModal(`${type}-modal`));
-    });
-    document.getElementById('generate-report-btn').addEventListener('click', generateReport);
-    document.getElementById('expense-payment').addEventListener('change', function() {
-        const installmentsGroup = document.getElementById('installments-group');
-        if (this.value === 'credit') {
-            installmentsGroup.classList.remove('hidden');
-        } else {
-            installmentsGroup.classList.add('hidden');
-            document.getElementById('expense-installments').value = 1;
-        }
-    });
-    document.getElementById('new-category-btn').addEventListener('click', function() {
-        document.getElementById('new-category-input-group').classList.toggle('hidden');
-    });
-    document.getElementById('save-new-category-btn').addEventListener('click', function() {
-        const newCategoryName = document.getElementById('new-category-name').value.trim();
-        if (newCategoryName) {
-            const newCategoryKey = newCategoryName.toLowerCase().replace(/\s+/g, '_').replace(/[^\w-]/g, '');
-            if (expenseCategories[newCategoryKey]) {
-                alert('Uma categoria com um nome similar já existe.');
-                return;
-            }
-            expenseCategories[newCategoryKey] = newCategoryName;
-            saveData();
-            populateCategoryDropdown();
-            document.getElementById('expense-category').value = newCategoryKey;
-            document.getElementById('new-category-name').value = '';
-            document.getElementById('new-category-input-group').classList.add('hidden');
-        }
-    });
-    document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
-    document.getElementById('add-provento-btn').addEventListener('click', addCustomProvento);
-    document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
-    document.getElementById('header-subtitle').addEventListener('click', editHeaderSubtitle);
-}
-
 function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
 function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-
-function addOrUpdateItem(type, id) {
-    const itemData = {};
-    let isValid = false;
-    const getNumericValue = (elementId) => parseBrazilianNumber(document.getElementById(elementId).value);
-
-    if (type === 'income') {
-        itemData.source = document.getElementById('income-source').value.trim();
-        itemData.amount = getNumericValue('income-amount');
-        itemData.type = document.getElementById('income-type').value;
-        itemData.date = document.getElementById('income-date').value;
-        if (itemData.source && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
-    } else if (type === 'expense') {
-        itemData.description = document.getElementById('expense-description').value.trim();
-        itemData.amount = getNumericValue('expense-amount');
-        itemData.category = document.getElementById('expense-category').value;
-        itemData.payment = document.getElementById('expense-payment').value;
-        itemData.date = document.getElementById('expense-date').value;
-        const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-
-        if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) {
-            if (id) {
-                const index = expenses.findIndex(item => item.id === id);
-                if (index > -1) {
-                    const originalDescription = expenses[index].description;
-                    const isInstallment = /\(\d+\/\d+\)$/.test(originalDescription);
-                    itemData.description = isInstallment ? originalDescription : itemData.description;
-                    expenses[index] = { ...expenses[index], ...itemData };
-                }
-            } else {
-                const groupId = (installments > 1) ? generateId() : null;
-                const originalDate = new Date(itemData.date + 'T00:00:00');
-                
-                for (let i = 1; i <= installments; i++) {
-                    const newExpense = { ...itemData };
-                    newExpense.id = generateId();
-                    newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
-                    
-                    if (groupId) {
-                        newExpense.installmentGroupId = groupId;
-                    }
-                    
-                    const installmentDate = new Date(originalDate);
-                    installmentDate.setMonth(originalDate.getMonth() + (i - 1));
-                    newExpense.date = installmentDate.toISOString().split('T')[0];
-                    
-                    expenses.push(newExpense);
-                }
-            }
-            updateDashboard();
-            closeModal('expense-modal');
-        } else {
-            alert('Por favor, preencha todos os campos obrigatórios corretamente.');
-        }
-        return;
-    } else if (type === 'goal') {
-        itemData.name = document.getElementById('goal-name').value.trim();
-        itemData.target = getNumericValue('goal-target');
-        itemData.current = getNumericValue('goal-current') || 0;
-        itemData.deadline = document.getElementById('goal-deadline').value;
-        if (itemData.name && !isNaN(itemData.target) && itemData.target > 0) isValid = true;
-    } else if (type === 'investment') {
-        itemData.description = document.getElementById('investment-description').value.trim();
-        itemData.amount = getNumericValue('investment-amount');
-        itemData.type = document.getElementById('investment-type').value;
-        itemData.yield = getNumericValue('investment-yield') || 0;
-        itemData.date = document.getElementById('investment-date').value;
-        if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
-    }
-
-    if (!isValid) {
-        alert('Por favor, preencha todos os campos obrigatórios corretamente.\nVerifique se o valor numérico é maior que zero.');
-        return;
-    }
-    
-    const dataArray = window[`${type}s`];
-    if (id) {
-        const index = dataArray.findIndex(item => item.id === id);
-        if (index > -1) dataArray[index] = { ...dataArray[index], ...itemData };
-    } else {
-        itemData.id = generateId();
-        dataArray.push(itemData);
-    }
-    updateDashboard();
-    closeModal(`${type}-modal`);
-}
-
 function handleEdit(type, id) {
     const modalId = `${type}-modal`;
     const saveBtn = document.getElementById(`save-${type}`);
     const modalTitle = document.getElementById(modalId).querySelector('h3');
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento' };
-    
     const form = document.getElementById(modalId).querySelector('.p-4');
     form.querySelectorAll('input, select').forEach(el => {
         if (el.type === 'text' || el.type === 'date' || el.type === 'number') el.value = '';
         else if (el.tagName === 'SELECT') el.selectedIndex = 0;
     });
-
     if (type === 'expense') {
         populateCategoryDropdown();
         document.getElementById('installments-group').classList.add('hidden');
         document.getElementById('expense-installments').value = 1;
     }
-
     if (id) {
         saveBtn.setAttribute('data-id', id);
         saveBtn.textContent = 'Atualizar';
@@ -509,225 +624,97 @@ function handleEdit(type, id) {
     }
     openModal(modalId);
 }
-
-function handleDelete(type, id) {
-    const dataArray = window[`${type}s`];
-    const item = dataArray.find(i => i.id === id);
-
-    if (!item) return;
-
-    if (type === 'expense' && item.installmentGroupId) {
-        if (confirm("Este item é uma parcela. Deseja apagar TODAS as parcelas relacionadas a esta compra?")) {
-            expenses = expenses.filter(exp => exp.installmentGroupId !== item.installmentGroupId);
-        } else {
-            if (confirm("OK. Deseja apagar apenas esta parcela individual?")) {
-                expenses = expenses.filter(exp => exp.id !== id);
-            }
-        }
-    } 
-    else if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
-        alert('Metas padrão não podem ser excluídas.');
-        return;
-    }
-    else {
-        if (confirm('Tem certeza que deseja excluir este item?')) {
-            window[`${type}s`] = dataArray.filter(i => i.id !== id);
-        }
-    }
-    
-    updateDashboard();
-}
-
-function editHeaderSubtitle() {
-    const h2 = document.getElementById('header-subtitle');
-    const currentText = h2.textContent;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = currentText;
-    input.className = 'text-xl md:text-2xl bg-transparent border-b-2 border-indigo-400 focus:outline-none text-center';
-    h2.replaceWith(input);
-    input.focus();
-    input.addEventListener('blur', () => saveHeaderSubtitle(input));
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') saveHeaderSubtitle(input);
-    });
-}
-
-function saveHeaderSubtitle(inputElement) {
-    const newText = inputElement.value.trim();
-    if (newText) {
-        localStorage.setItem('headerSubtitle', newText);
-    } else {
-        localStorage.removeItem('headerSubtitle');
-    }
-    const newH2 = document.createElement('h2');
-    newH2.id = 'header-subtitle';
-    newH2.className = 'text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity';
-    newH2.title = 'Clique para editar';
-    newH2.textContent = newText || 'Nomes aqui';
-    inputElement.replaceWith(newH2);
-    newH2.addEventListener('click', editHeaderSubtitle);
-}
-
-// NOVO: Função para enviar renda para a calculadora
 function sendIncomeToCalculator(id) {
     const incomeItem = incomes.find(item => item.id === id);
     if (!incomeItem) return;
-
-    // Formata o número para o padrão brasileiro (com vírgula) para o campo de input
     const formattedAmount = String(incomeItem.amount).replace('.', ',');
     document.getElementById('calc-base-salary').value = formattedAmount;
-
-    // Simula o clique na aba da calculadora para mudar a visualização
     document.querySelector('button[data-tab="calculator"]').click();
-
-    // Roda o cálculo automaticamente
     calculateNetSalary();
-
-    // Opcional: Rola a página até a calculadora para o usuário ver o resultado
     document.getElementById('calculator-content').scrollIntoView({ behavior: 'smooth' });
 }
-
-// =======================================================
-// SEÇÃO DA CALCULADORA DE SALÁRIO
-// =======================================================
-
-function renderCustomProventos() {
-    const list = document.getElementById('custom-proventos-list');
+function renderCustomList(listName, listArray, listElementId, deleteCallback) {
+    const list = document.getElementById(listElementId);
     list.innerHTML = '';
-    customProventos.forEach((provento, index) => {
+    listArray.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded';
-        div.innerHTML = `<span class="text-sm">${provento.name} - ${formatCurrency(provento.value)}</span><button class="delete-provento-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
+        div.innerHTML = `<span class="text-sm">${item.name} - ${formatCurrency(item.value)}</span><button class="delete-${listName}-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
         list.appendChild(div);
     });
-    document.querySelectorAll('.delete-provento-btn').forEach(btn => btn.addEventListener('click', deleteCustomProvento));
+    document.querySelectorAll(`.delete-${listName}-btn`).forEach(btn => btn.addEventListener('click', deleteCallback));
 }
-
-function addCustomProvento() {
-    const nameInput = document.getElementById('new-provento-name');
-    const valueInput = document.getElementById('new-provento-value');
+function renderCustomProventos() { renderCustomList('provento', customProventos, 'custom-proventos-list', deleteCustomProvento); }
+function renderCustomDiscounts() { renderCustomList('discount', customDiscounts, 'custom-discounts-list', deleteCustomDiscount); }
+async function addCustomItem(itemName, valueName, listArray) {
+    const nameInput = document.getElementById(`new-${itemName}-name`);
+    const valueInput = document.getElementById(`new-${itemName}-value`);
     const name = nameInput.value.trim();
     const value = parseBrazilianNumber(valueInput.value);
     if (name && !isNaN(value) && value > 0) {
-        customProventos.push({ name, value });
-        saveData();
-        renderCustomProventos();
+        listArray.push({ name, value });
+        await saveUserSettings();
+        if (itemName === 'provento') renderCustomProventos(); else renderCustomDiscounts();
         nameInput.value = '';
         valueInput.value = '';
     } else {
-        alert('Por favor, preencha o nome e um valor válido para o provento.');
+        alert(`Por favor, preencha o nome e um valor válido para o ${valueName}.`);
     }
 }
-
-function deleteCustomProvento(event) {
+async function deleteCustomItem(event, listArray) {
     const index = event.currentTarget.dataset.index;
-    customProventos.splice(index, 1);
-    saveData();
-    renderCustomProventos();
+    listArray.splice(index, 1);
+    await saveUserSettings();
+    if (listArray === customProventos) renderCustomProventos(); else renderCustomDiscounts();
 }
-
-function renderCustomDiscounts() {
-    const list = document.getElementById('custom-discounts-list');
-    list.innerHTML = '';
-    customDiscounts.forEach((discount, index) => {
-        const div = document.createElement('div');
-        div.className = 'flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded';
-        div.innerHTML = `<span class="text-sm">${discount.name} - ${formatCurrency(discount.value)}</span><button class="delete-discount-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
-        list.appendChild(div);
-    });
-    document.querySelectorAll('.delete-discount-btn').forEach(btn => {
-        btn.addEventListener('click', deleteCustomDiscount);
-    });
-}
-
-function addCustomDiscount() {
-    const nameInput = document.getElementById('new-discount-name');
-    const valueInput = document.getElementById('new-discount-value');
-    const name = nameInput.value.trim();
-    const value = parseBrazilianNumber(valueInput.value);
-    if (name && !isNaN(value) && value > 0) {
-        customDiscounts.push({ name, value });
-        saveData();
-        renderCustomDiscounts();
-        nameInput.value = '';
-        valueInput.value = '';
-    } else {
-        alert('Por favor, preencha o nome e um valor válido para o desconto.');
-    }
-}
-
-function deleteCustomDiscount(event) {
-    const index = event.currentTarget.dataset.index;
-    customDiscounts.splice(index, 1);
-    saveData();
-    renderCustomDiscounts();
-}
-
+function addCustomProvento() { addCustomItem('provento', 'provento', customProventos); }
+function addCustomDiscount() { addCustomItem('discount', 'desconto', customDiscounts); }
+function deleteCustomProvento(event) { deleteCustomItem(event, customProventos); }
+function deleteCustomDiscount(event) { deleteCustomItem(event, customDiscounts); }
 function calculateINSS(baseSalary) {
-    const TETO_INSS = 908.85;
+    const TETO_INSS = 908.85; // Valor de 2024
     let contribution = 0;
-    if (baseSalary <= 1412.00) {
-        contribution = baseSalary * 0.075;
-    } else if (baseSalary <= 2666.68) {
-        contribution = (1412.00 * 0.075) + ((baseSalary - 1412.00) * 0.09);
-    } else if (baseSalary <= 4000.03) {
-        contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((baseSalary - 2666.68) * 0.12);
-    } else if (baseSalary <= 7786.02) {
-        contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((4000.03 - 2666.68) * 0.12) + ((baseSalary - 4000.03) * 0.14);
-    } else {
-        contribution = TETO_INSS;
-    }
+    if (baseSalary <= 1412.00) { contribution = baseSalary * 0.075; }
+    else if (baseSalary <= 2666.68) { contribution = (1412.00 * 0.075) + ((baseSalary - 1412.00) * 0.09); }
+    else if (baseSalary <= 4000.03) { contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((baseSalary - 2666.68) * 0.12); }
+    else if (baseSalary <= 7786.02) { contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((4000.03 - 2666.68) * 0.12) + ((baseSalary - 4000.03) * 0.14); }
+    else { contribution = TETO_INSS; }
     return Math.min(contribution, TETO_INSS);
 }
-
 function calculateIRRF(baseSalary, inss, dependents) {
-    const DEDUCAO_DEPENDENTE = 189.59;
+    const DEDUCAO_DEPENDENTE = 189.59; // Valor de 2024
     const baseIRRF = baseSalary - inss - (dependents * DEDUCAO_DEPENDENTE);
     let tax = 0;
-    if (baseIRRF <= 2259.20) {
-        tax = 0;
-    } else if (baseIRRF <= 2826.65) {
-        tax = (baseIRRF * 0.075) - 169.44;
-    } else if (baseIRRF <= 3751.05) {
-        tax = (baseIRRF * 0.15) - 381.44;
-    } else if (baseIRRF <= 4664.68) {
-        tax = (baseIRRF * 0.225) - 662.77;
-    } else {
-        tax = (baseIRRF * 0.275) - 896.00;
-    }
+    if (baseIRRF <= 2259.20) { tax = 0; }
+    else if (baseIRRF <= 2826.65) { tax = (baseIRRF * 0.075) - 169.44; }
+    else if (baseIRRF <= 3751.05) { tax = (baseIRRF * 0.15) - 381.44; }
+    else if (baseIRRF <= 4664.68) { tax = (baseIRRF * 0.225) - 662.77; }
+    else { tax = (baseIRRF * 0.275) - 896.00; }
     return tax > 0 ? tax : 0;
 }
-
 function calculateNetSalary() {
     const baseSalary = parseBrazilianNumber(document.getElementById('calc-base-salary').value) || 0;
     const workload = parseFloat(document.getElementById('calc-workload').value) || 220;
     const ot50hours = parseFloat(document.getElementById('calc-ot-50').value) || 0;
     const ot100hours = parseFloat(document.getElementById('calc-ot-100').value) || 0;
     const dependents = parseInt(document.getElementById('calc-dependents').value) || 0;
-    
     const totalCustomDiscounts = customDiscounts.reduce((sum, d) => sum + d.value, 0);
     const totalCustomProventos = customProventos.reduce((sum, p) => sum + p.value, 0);
-
     const normalHourValue = baseSalary > 0 && workload > 0 ? baseSalary / workload : 0;
     const totalOt50 = ot50hours * (normalHourValue * 1.5);
     const totalOt100 = ot100hours * (normalHourValue * 2.0);
     const dsr = (totalOt50 + totalOt100) / 6; 
     const totalGross = baseSalary + totalOt50 + totalOt100 + dsr + totalCustomProventos;
-
     const inss = calculateINSS(totalGross);
     const irrf = calculateIRRF(totalGross, inss, dependents);
     const totalDiscounts = inss + irrf + totalCustomDiscounts;
-
     const netSalary = totalGross - totalDiscounts;
     const fgts = totalGross * 0.08;
     const totalHours = workload + ot50hours + ot100hours;
-
     document.getElementById('res-base-salary').textContent = formatCurrency(baseSalary);
     document.getElementById('res-ot-50').textContent = formatCurrency(totalOt50);
     document.getElementById('res-ot-100').textContent = formatCurrency(totalOt100);
     document.getElementById('res-dsr').textContent = formatCurrency(dsr);
-    
     const customProventosResultList = document.getElementById('res-custom-proventos-list');
     customProventosResultList.innerHTML = '';
     customProventos.forEach(p => {
@@ -736,11 +723,9 @@ function calculateNetSalary() {
         div.innerHTML = `<p>${p.name}</p><p>${formatCurrency(p.value)}</p>`;
         customProventosResultList.appendChild(div);
     });
-
     document.getElementById('res-total-gross').textContent = formatCurrency(totalGross);
     document.getElementById('res-inss').textContent = formatCurrency(inss > 0 ? -inss : 0);
     document.getElementById('res-irrf').textContent = formatCurrency(irrf > 0 ? -irrf : 0);
-    
     const customDiscountsResultList = document.getElementById('res-custom-discounts-list');
     customDiscountsResultList.innerHTML = '';
     customDiscounts.forEach(d => {
@@ -749,7 +734,6 @@ function calculateNetSalary() {
         div.innerHTML = `<p>${d.name}</p><p class="text-red-600 dark:text-red-400">${formatCurrency(-d.value)}</p>`;
         customDiscountsResultList.appendChild(div);
     });
-
     document.getElementById('res-total-discounts').textContent = formatCurrency(totalDiscounts > 0 ? -totalDiscounts : 0);
     document.getElementById('res-net-salary').textContent = formatCurrency(netSalary);
     document.getElementById('res-fgts').textContent = formatCurrency(fgts);
