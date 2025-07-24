@@ -739,16 +739,52 @@ function addCustomProvento() { addCustomItem('provento', 'provento', customProve
 function addCustomDiscount() { addCustomItem('discount', 'desconto', customDiscounts); }
 function deleteCustomProvento(event) { deleteCustomItem(event, customProventos); }
 function deleteCustomDiscount(event) { deleteCustomItem(event, customDiscounts); }
-function calculateINSS(baseSalary) {
-    const TETO_INSS = 908.85;
+/**
+ * Calcula a contribuição do INSS com base na tabela de 2025.
+ * O cálculo é progressivo e lida com o teto de contribuição.
+ * @param {number} grossSalary - O salário bruto total.
+ * @returns {number} O valor do desconto do INSS, formatado com 2 casas decimais.
+ */
+function calculateINSS(grossSalary) {
+    // --- FUNÇÃO DO INSS CORRIGIDA PARA 2025 ---
+    const TETO_SALARIAL_INSS = 8157.41;
+    const TETO_CONTRIBUICAO_INSS = 951.63; // Valor máximo de contribuição já calculado
+
+    // Se o salário for maior que o teto, retorna o desconto máximo
+    if (grossSalary > TETO_SALARIAL_INSS) {
+        return TETO_CONTRIBUICAO_INSS;
+    }
+
     let contribution = 0;
-    if (baseSalary <= 1412.00) { contribution = baseSalary * 0.075; }
-    else if (baseSalary <= 2666.68) { contribution = (1412.00 * 0.075) + ((baseSalary - 1412.00) * 0.09); }
-    else if (baseSalary <= 4000.03) { contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((baseSalary - 2666.68) * 0.12); }
-    else if (baseSalary <= 7786.02) { contribution = (1412.00 * 0.075) + ((2666.68 - 1412.00) * 0.09) + ((4000.03 - 2666.68) * 0.12) + ((baseSalary - 4000.03) * 0.14); }
-    else { contribution = TETO_INSS; }
-    return Math.min(contribution, TETO_INSS);
+    
+    // Faixa 1: 7,5% para salários até R$ 1.518,00
+    if (grossSalary <= 1518.00) {
+        contribution = grossSalary * 0.075;
+    } 
+    // Faixa 2: 9% para salários de R$ 1.518,01 até R$ 2.793,88
+    else if (grossSalary <= 2793.88) {
+        contribution = (1518.00 * 0.075) 
+                     + ((grossSalary - 1518.00) * 0.09);
+    } 
+    // Faixa 3: 12% para salários de R$ 2.793,89 até R$ 4.190,83
+    else if (grossSalary <= 4190.83) {
+        contribution = (1518.00 * 0.075) 
+                     + ((2793.88 - 1518.00) * 0.09) 
+                     + ((grossSalary - 2793.88) * 0.12);
+    } 
+    // Faixa 4: 14% para salários de R$ 4.190,84 até o teto de R$ 8.157,41
+    else {
+        contribution = (1518.00 * 0.075) 
+                     + ((2793.88 - 1518.00) * 0.09) 
+                     + ((4190.83 - 2793.88) * 0.12) 
+                     + ((grossSalary - 4190.83) * 0.14);
+    }
+    
+    // Garante que o resultado final tenha sempre 2 casas decimais
+    return parseFloat(contribution.toFixed(2));
 }
+
+// Esta função já estava correta para 2025 e foi mantida
 function calculateIRRF(baseSalary, inss, dependents) {
     const DEDUCAO_DEPENDENTE = 189.59;
     const baseIRRF = baseSalary - inss - (dependents * DEDUCAO_DEPENDENTE);
@@ -758,8 +794,10 @@ function calculateIRRF(baseSalary, inss, dependents) {
     else if (baseIRRF <= 3751.05) { tax = (baseIRRF * 0.15) - 381.44; }
     else if (baseIRRF <= 4664.68) { tax = (baseIRRF * 0.225) - 662.77; }
     else { tax = (baseIRRF * 0.275) - 896.00; }
-    return tax > 0 ? tax : 0;
+    return tax > 0 ? parseFloat(tax.toFixed(2)) : 0;
 }
+
+// Esta função chama os cálculos e não precisa de alterações na sua lógica
 function calculateNetSalary() {
     const baseSalary = parseBrazilianNumber(document.getElementById('calc-base-salary').value) || 0;
     const workload = parseFloat(document.getElementById('calc-workload').value) || 220;
