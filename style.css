@@ -1,0 +1,67 @@
+.chart-container { height: 350px; position: relative; }
+.progress-bar { height: 20px; border-radius: 10px; overflow: hidden; background-color: #e5e7eb; }
+.dark .progress-bar { background-color: #374151; }
+.progress-fill { height: 100%; transition: width 0.5s ease; }
+.modal { transition: opacity 0.3s ease; }
+.table-container { overflow-x: auto; }
+
+.active-tab { 
+    border-color: #4f46e5 !important; 
+    color: #4f46e5 !important; 
+    font-weight: 600;
+}
+.dark .active-tab {
+    border-color: #818cf8 !important;
+    color: #c7d2fe !important;
+}
+
+.income-fixed-row { background-color: rgba(22, 163, 74, 0.07) !important; }
+.income-variable-row { background-color: rgba(59, 130, 246, 0.07) !important; }
+.income-extra-row { background-color: rgba(139, 92, 246, 0.07) !important; }
+.dark .income-fixed-row { background-color: rgba(74, 222, 128, 0.1) !important; }
+.dark .income-variable-row { background-color: rgba(96, 165, 250, 0.1) !important; }
+.dark .income-extra-row { background-color: rgba(167, 139, 250, 0.1) !important; }
+
+/* Estilos para Despesas Pagas/Pendentes */
+.expense-paid {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+.dark .expense-paid {
+    opacity: 0.5;
+}
+.status-toggle {
+    cursor: pointer;
+    font-size: 1.25rem;
+}
+.status-toggle.fa-toggle-on {
+    color: #22c55e; /* green-500 */
+}
+.status-toggle.fa-toggle-off {
+    color: #ef4444; /* red-500 */
+}
+.dark .status-toggle.fa-toggle-off {
+    color: #f87171; /* red-400 */
+}
+
+
+.badge {
+    padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    display: inline-block; text-align: center; min-width: 80px;
+}
+.badge-credit { background-color: #fee2e2; color: #b91c1c; }
+.badge-debit { background-color: #dbeafe; color: #1e40af; }
+.badge-pix { background-color: #dcfce7; color: #166534; }
+.badge-cash { background-color: #fefce8; color: #854d0e; }
+.badge-transfer { background-color: #f3e8ff; color: #6b21a8; }
+.dark .badge-credit { background-color: #3f2222; color: #fca5a5; }
+.dark .badge-debit { background-color: #1e293b; color: #93c5fd; }
+.dark .badge-pix { background-color: #1c3224; color: #86efac; }
+.dark .badge-cash { background-color: #423d1d; color: #fde047; }
+.dark .badge-transfer { background-color: #2e104d; color: #d8b4fe; }
+
+@media print {
+    .no-print { display: none !important; }
+    body { background-color: white !important; color: black !important; }
+}
