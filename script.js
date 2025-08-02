@@ -14,6 +14,98 @@ var payPeriodStartDay = 1;
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
 
+// =======================================================
+// NOVAS FUNÇÕES DE NOTIFICAÇÃO (TOAST E CONFIRMAÇÃO)
+// =======================================================
+
+/**
+ * Mostra uma notificação toast no canto da tela.
+ * @param {string} message - A mensagem a ser exibida.
+ * @param {string} type - O tipo de toast ('success', 'error', 'info').
+ * @param {number} duration - Duração em milissegundos para o toast desaparecer.
+ */
+function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const typeClasses = {
+        success: 'bg-green-100 border-green-500 text-green-700 dark:bg-green-900/80 dark:text-green-200 dark:border-green-600',
+        error: 'bg-red-100 border-red-500 text-red-700 dark:bg-red-900/80 dark:text-red-200 dark:border-red-600',
+        info: 'bg-blue-100 border-blue-500 text-blue-700 dark:bg-blue-900/80 dark:text-blue-200 dark:border-blue-600'
+    };
+    const iconClasses = {
+        success: 'fa-check-circle',
+        error: 'fa-times-circle',
+        info: 'fa-info-circle'
+    }
+
+    toast.className = `flex items-center p-4 rounded-lg shadow-lg border-l-4 transition-all duration-300 transform translate-x-full opacity-0 ${typeClasses[type] || typeClasses['info']}`;
+    toast.innerHTML = `
+        <i class="fas ${iconClasses[type] || iconClasses['info']} mr-3 text-xl"></i>
+        <span>${message}</span>
+        <button class="ml-auto text-lg opacity-70 hover:opacity-100">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    // Animação de entrada
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full', 'opacity-0');
+    }, 10);
+
+    const closeToast = () => {
+        toast.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    };
+    
+    toast.querySelector('button').addEventListener('click', closeToast);
+    setTimeout(closeToast, duration);
+}
+
+/**
+ * Exibe um modal de confirmação e retorna uma Promise que resolve para true ou false.
+ * @param {string} title - O título do modal.
+ * @param {string} message - A mensagem de confirmação.
+ * @param {string} confirmButtonClass - (Opcional) Classe de cor do botão de confirmação. Ex: 'bg-red-600'
+ * @returns {Promise<boolean>} - Resolve para `true` se confirmado, `false` se cancelado.
+ */
+function showConfirmation(title, message, confirmButtonClass = 'bg-red-600 hover:bg-red-700') {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirmation-modal');
+        const titleEl = document.getElementById('confirmation-title');
+        const messageEl = document.getElementById('confirmation-message');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        // Reseta e aplica a classe de cor do botão
+        okBtn.className = 'font-bold py-2 px-5 rounded-lg text-white';
+        okBtn.classList.add(...confirmButtonClass.split(' '));
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        const handleOk = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resolve(true);
+        };
+
+        const handleCancel = () => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resolve(false);
+        };
+        
+        // Usamos { once: true } para que os listeners sejam removidos automaticamente após o primeiro clique
+        okBtn.addEventListener('click', handleOk, { once: true });
+        cancelBtn.addEventListener('click', handleCancel, { once: true });
+    });
+}
+
 
 // PONTO DE ENTRADA PRINCIPAL
 // =======================================================
@@ -197,14 +289,15 @@ async function addOrUpdateItem(type, id) {
                 }
                 updateDashboard();
                 closeModal('expense-modal');
-            } catch(e) { console.error("Erro ao salvar despesa: ", e); alert("Falha ao salvar despesa."); }
+                showToast('Despesa salva com sucesso!', 'success');
+            } catch(e) { console.error("Erro ao salvar despesa: ", e); showToast("Falha ao salvar despesa.", 'error'); }
         } else {
-            alert('Por favor, preencha todos os campos obrigatórios corretamente.');
+            showToast('Por favor, preencha todos os campos corretamente.', 'error');
         }
         return;
     }
     if (!isValid) {
-        alert('Por favor, preencha todos os campos obrigatórios corretamente.\nVerifique se o valor numérico é maior que zero.');
+        showToast('Por favor, preencha os campos obrigatórios e verifique se o valor é maior que zero.', 'error');
         return;
     }
     const collectionName = `${type}s`;
@@ -220,21 +313,26 @@ async function addOrUpdateItem(type, id) {
         }
         updateDashboard();
         closeModal(`${type}-modal`);
+        showToast(`Item salvo com sucesso!`, 'success');
     } catch(e) {
         console.error(`Erro ao salvar ${type}: `, e);
-        alert(`Falha ao salvar ${type}.`);
+        showToast(`Falha ao salvar ${type}.`, 'error');
     }
 }
 
 async function handleDelete(type, id) {
-    // Note: 'timeEntrie' is a typo fix for 'timeEntries' to match collection name logic
     const collectionName = type === 'timeEntrie' ? 'timeEntries' : `${type}s`;
     const dataArray = window[collectionName];
     const item = dataArray.find(i => i.id === id);
     if (!item) return;
+
     try {
         if (type === 'expense' && item.installmentGroupId) {
-            if (confirm("Este item é uma parcela. Deseja apagar TODAS as parcelas relacionadas a esta compra?")) {
+            const confirmed = await showConfirmation(
+                'Apagar Parcelas',
+                'Este item é uma parcela. Deseja apagar TODAS as parcelas futuras relacionadas a esta compra?'
+            );
+            if (confirmed) {
                 const batch = db.batch();
                 const relatedExpenses = expenses.filter(exp => exp.installmentGroupId === item.installmentGroupId);
                 relatedExpenses.forEach(exp => {
@@ -243,22 +341,25 @@ async function handleDelete(type, id) {
                 });
                 await batch.commit();
                 expenses = expenses.filter(exp => exp.installmentGroupId !== item.installmentGroupId);
+                showToast('Todas as parcelas foram apagadas.', 'success');
             } else {
                 return;
             }
         } else if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
-            alert('Metas padrão não podem ser excluídas.');
+            showToast('Metas padrão não podem ser excluídas.', 'info');
             return;
         } else {
-            if (confirm('Tem certeza que deseja excluir este item?')) {
+            const confirmed = await showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? A ação não pode ser desfeita.');
+            if (confirmed) {
                 await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(id).delete();
                 window[collectionName] = dataArray.filter(i => i.id !== id);
+                showToast('Item excluído com sucesso!', 'success');
             }
         }
         updateDashboard();
     } catch(e) {
         console.error(`Erro ao apagar ${type}: `, e);
-        alert(`Falha ao apagar ${type}.`);
+        showToast(`Falha ao apagar ${type}.`, 'error');
     }
 }
 
@@ -274,21 +375,21 @@ async function saveUserSettings() {
         return;
     }
 
-    payPeriodStartDay = newStartDay; // Atualiza a variável global
+    payPeriodStartDay = newStartDay; 
 
     const settings = {
         headerSubtitle: document.getElementById('header-subtitle').textContent,
         expenseCategories,
         customDiscounts,
         customProventos,
-        payPeriodStartDay: payPeriodStartDay // Salva o novo valor
+        payPeriodStartDay: payPeriodStartDay
     };
 
     try {
         await db.collection('users').doc(currentUser.uid).set(settings, { merge: true });
         feedbackEl.textContent = "Configurações salvas com sucesso!";
         feedbackEl.className = 'text-sm mt-2 text-center text-green-500';
-        updateDashboard(); // Atualiza a visualização com o novo período
+        updateDashboard();
     } catch (error) {
         console.error("Erro ao salvar configurações:", error);
         feedbackEl.textContent = "Erro ao salvar. Tente novamente.";
@@ -317,11 +418,11 @@ async function clearAllUserData() {
         timeEntries = [];
         await loadDataFromFirestore(); 
         updateDashboard();
-        alert('Todos os seus dados foram apagados com sucesso.');
+        showToast('Todos os seus dados foram apagados com sucesso.', 'success');
 
     } catch (error) {
         console.error("Erro ao apagar todos os dados:", error);
-        alert("Ocorreu um erro ao tentar apagar os dados. Tente novamente.");
+        showToast("Ocorreu um erro ao tentar apagar os dados.", 'error');
     }
 }
 
@@ -354,7 +455,6 @@ function setupEventListeners() {
         const monthYearSelectors = ['month-select', 'year-select'];
         const nonMonthTabs = ['reports', 'calculator', 'account', 'investments', 'goals'];
         
-        // As abas que usam o seletor de período agora são 'income', 'expenses', 'hours'
         if (nonMonthTabs.includes(this.dataset.tab)) {
              monthYearSelectors.forEach(id => document.getElementById(id).classList.add('hidden'));
         } else {
@@ -365,8 +465,14 @@ function setupEventListeners() {
         if (this.dataset.tab === 'calculator') updateCalculatorWithOvertime();
     }));
     document.getElementById('print-btn').addEventListener('click', () => window.print());
+    
     document.getElementById('reset-btn').addEventListener('click', async () => {
-        if (confirm('Tem certeza? Isso vai apagar os dados DO PERÍODO ATUAL para renda, despesas, horas e investimentos.')) {
+        const confirmed = await showConfirmation(
+            'Reiniciar Mês', 
+            'Isso vai apagar os dados de renda, despesas, horas e investimentos DO PERÍODO ATUAL. Tem certeza?',
+            'bg-orange-500 hover:bg-orange-600'
+        );
+        if (confirmed) {
             const batch = db.batch();
             const { startDate, endDate } = getPayPeriodRange(currentYear, currentMonth);
             const predicate = item => {
@@ -387,12 +493,21 @@ function setupEventListeners() {
             investments = investments.filter(inversePredicate);
             timeEntries = timeEntries.filter(inversePredicate);
             updateDashboard();
+            showToast('Dados do mês reiniciados!', 'success');
         }
     });
     
     document.getElementById('clear-all-btn').addEventListener('click', async () => {
-        if (confirm('ATENÇÃO! Isso apagará TODOS os seus dados permanentemente. Deseja continuar?')) {
-            if (confirm('Esta é a sua última chance. Tem certeza absoluta?')) {
+        const confirmed1 = await showConfirmation(
+            'ATENÇÃO MÁXIMA!', 
+            'Isso apagará TODOS os seus dados permanentemente, de TODOS os meses. Deseja continuar?'
+        );
+        if (confirmed1) {
+            const confirmed2 = await showConfirmation(
+                'ÚLTIMO AVISO', 
+                'Esta é a sua última chance. Tem certeza absoluta que deseja apagar tudo?'
+            );
+            if (confirmed2) {
                 await clearAllUserData();
             }
         }
@@ -418,7 +533,7 @@ function setupEventListeners() {
         if (newCategoryName) {
             const newCategoryKey = newCategoryName.toLowerCase().replace(/\s+/g, '_').replace(/[^\w-]/g, '');
             if (expenseCategories[newCategoryKey]) {
-                alert('Uma categoria com um nome similar já existe.');
+                showToast('Uma categoria com um nome similar já existe.', 'error');
                 return;
             }
             expenseCategories[newCategoryKey] = newCategoryName;
@@ -427,6 +542,7 @@ function setupEventListeners() {
             document.getElementById('expense-category').value = newCategoryKey;
             document.getElementById('new-category-name').value = '';
             document.getElementById('new-category-input-group').classList.add('hidden');
+            showToast('Nova categoria adicionada!', 'success');
         }
     });
     document.getElementById('add-discount-btn').addEventListener('click', addCustomDiscount);
@@ -441,23 +557,14 @@ function setupEventListeners() {
 
 // FUNÇÕES DE UTILIDADE E FORMATAÇÃO
 // =======================================================
-/**
- * Retorna as datas de início e fim para um determinado período de pagamento.
- * O período vai do dia 24 do mês anterior ao dia 23 do mês selecionado.
- * @param {number} year - O ano selecionado.
- * @param {number} month - O mês de fechamento selecionado (1-12).
- * @returns {{startDate: Date, endDate: Date}} - O objeto com as datas de início e fim.
- */
 function getPayPeriodRange(year, month) {
-    const startDay = payPeriodStartDay; // Usa a variável global
+    const startDay = payPeriodStartDay;
 
     if (startDay === 1) {
-        // Lógica para mês de calendário padrão
         const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0); // O dia 0 do próximo mês retorna o último dia do mês atual
+        const endDate = new Date(year, month, 0);
         return { startDate, endDate };
     } else {
-        // Lógica para período personalizado (ex: dia 24 a 23)
         const endDate = new Date(year, month - 1, startDay - 1);
         const startDate = new Date(year, month - 2, startDay);
         return { startDate, endDate };
@@ -535,7 +642,6 @@ function toggleTheme() {
 function updateDashboard() {
     const { startDate, endDate } = getPayPeriodRange(currentYear, currentMonth);
 
-    // Atualiza o texto que mostra o período
     const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
     document.getElementById('date-range-display').textContent = 
         `Exibindo período: ${startDate.toLocaleDateString('pt-BR', options)} a ${endDate.toLocaleDateString('pt-BR', options)}`;
@@ -709,11 +815,10 @@ async function toggleExpenseStatus(id) {
     }
 }
 function updateGoalsTable(monthSavings, totalInvested) {
-    // Metas não são filtradas por período, são vitalícias
     const savingsGoal = goals.find(g => g.name === "Economia Mensal");
-    if (savingsGoal) savingsGoal.current = monthSavings; // Economia do período atual
+    if (savingsGoal) savingsGoal.current = monthSavings;
     const emergencyGoal = goals.find(g => g.name === "Reserva de Emergência");
-    if (emergencyGoal) emergencyGoal.current = investments.reduce((sum, item) => sum + item.amount, 0); // Total de investimentos
+    if (emergencyGoal) emergencyGoal.current = investments.reduce((sum, item) => sum + item.amount, 0);
     
     [savingsGoal, emergencyGoal].forEach(goal => {
         if (!goal) return;
@@ -739,7 +844,6 @@ function updateGoalsTable(monthSavings, totalInvested) {
     });
 }
 function updateInvestmentsTable() {
-    // Investimentos não são filtrados por período na visualização principal
     const allInvestments = [...investments].sort((a,b) => new Date(b.date) - new Date(a.date));
     const typeLabels = { savings: 'Poupança', cdb: 'CDB', 'lci-lca': 'LCI/LCA', funds: 'Fundos', stocks: 'Ações', fiis: 'FIIs', treasury: 'Tesouro' };
     updateTable('investment', allInvestments, item => {
@@ -811,7 +915,7 @@ function generateReport() {
     };
     const currentExpenses = expenses.filter(predicate);
     const currentIncomes = incomes.filter(predicate);
-    const totals = calculateTotals(); // calculateTotals already uses the correct range
+    const totals = calculateTotals();
 
     const reportType = document.getElementById('report-type').value;
     const isDarkMode = document.documentElement.classList.contains('dark');
@@ -833,7 +937,7 @@ function generateReport() {
             const pendingAmount = currentExpenses.filter(e => !e.isPaid).reduce((sum, e) => sum + e.amount, 0);
             chartConfig = { type: 'pie', data: { labels: ['Pagas', 'Pendentes'], datasets: [{ label: 'Status Despesas', data: [paidAmount, pendingAmount], backgroundColor: ['#22c55e', '#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: textColor } } } } };
             break;
-        default: // income-vs-expenses
+        default:
             chartConfig = { type: 'bar', data: { labels: ['Resumo do Período'], datasets: [{ label: 'Renda', data: [totals.totalIncome], backgroundColor: 'rgba(75, 192, 192, 0.7)' }, { label: 'Despesas', data: [totals.totalExpenses], backgroundColor: 'rgba(255, 99, 132, 0.7)' }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: textColor } } }, scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { color: gridColor }, ticks: { color: textColor } } } } };
             break;
     }
@@ -953,7 +1057,7 @@ async function addCustomItem(itemName, valueName, listArray) {
         nameInput.value = '';
         valueInput.value = '';
     } else {
-        alert(`Por favor, preencha o nome e um valor válido para o ${valueName}.`);
+        showToast(`Por favor, preencha o nome e um valor válido para o ${valueName}.`, 'error');
     }
 }
 async function deleteCustomItem(event, listArray) {
@@ -1018,7 +1122,7 @@ async function addHourEntry() {
     };
 
     if (!entryData.date || !entryData.entry || !entryData.exit) {
-        alert('Data, Entrada e Saída são obrigatórios.');
+        showToast('Data, Entrada e Saída são obrigatórios.', 'error');
         return;
     }
 
@@ -1036,10 +1140,11 @@ async function addHourEntry() {
         
         resetHourForm();
         updateDashboard();
+        showToast('Registro de hora salvo!', 'success');
 
     } catch(e) {
         console.error("Erro ao salvar registro de hora:", e);
-        alert("Falha ao salvar o registro.");
+        showToast("Falha ao salvar o registro.", 'error');
     }
 }
 
@@ -1149,15 +1254,11 @@ function calculateNetSalary() {
     document.getElementById('res-total-hours').textContent = `${Math.round(totalHours)}h`;
 }
 
-// =======================================================
-//  LÓGICA DE INSTALAÇÃO DO PWA
+// LÓGICA DE INSTALAÇÃO DO PWA
 // =======================================================
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Impede que o mini-infobar apareça no Chrome
     e.preventDefault();
-    // Guarda o evento para que possa ser acionado mais tarde.
     deferredPrompt = e;
-    // Mostra o nosso botão de instalação personalizado
     const installBtn = document.getElementById('install-pwa-btn');
     if (installBtn) {
         installBtn.classList.remove('hidden');
@@ -1167,14 +1268,10 @@ window.addEventListener('beforeinstallprompt', (e) => {
 async function handleInstallClick() {
     const installBtn = document.getElementById('install-pwa-btn');
     if (deferredPrompt) {
-        // Mostra o prompt de instalação
         deferredPrompt.prompt();
-        // Espera o usuário responder ao prompt
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`Resposta do usuário ao prompt de instalação: ${outcome}`);
-        // Não podemos usar o evento novamente, então o limpamos
         deferredPrompt = null;
-        // Esconde o botão de instalação
         if (installBtn) {
             installBtn.classList.add('hidden');
         }
@@ -1182,7 +1279,6 @@ async function handleInstallClick() {
 }
 
 window.addEventListener('appinstalled', () => {
-    // Limpa o prompt para que não possa ser chamado novamente
     deferredPrompt = null;
     console.log('PWA foi instalado com sucesso!');
 });
