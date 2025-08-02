@@ -1,20 +1,22 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v4'; // Versão incrementada
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v4';
-const NOME_DO_REPOSITORIO = '/Planilha-De-Gastos';
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v5'; // Versão incrementada para forçar a atualização
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v5';
 
+// Lista de arquivos com caminhos relativos para funcionar em qualquer ambiente
 const urlsToCache = [
-  `${NOME_DO_REPOSITORIO}/`,
-  `${NOME_DO_REPOSITORIO}/index.html`,
-  `${NOME_DO_REPOSITORIO}/login.html`,
-  `${NOME_DO_REPOSITORIO}/style.css`,
-  `${NOME_DO_REPOSITORIO}/script.js`,
-  `${NOME_DO_REPOSITORIO}/auth.js`,
-  `${NOME_DO_REPOSITORIO}/manifest.json`,
-  `${NOME_DO_REPOSITORIO}/images/icon-192x192.png`,
-  `${NOME_DO_REPOSITORIO}/images/icon-512x512.png`
+  './',
+  'index.html',
+  'login.html',
+  'style.css',
+  'script.js',
+  'auth.js',
+  'manifest.json',
+  'images/icon-192x192.png',
+  'images/icon-512x512.png'
 ];
 
+// Evento de Instalação: Salva os arquivos estáticos principais
 self.addEventListener('install', event => {
+  // Garante que o service worker não ative até que o cache esteja completo
   event.waitUntil(
     caches.open(CACHE_NOME_ESTATICO)
       .then(cache => {
@@ -24,6 +26,7 @@ self.addEventListener('install', event => {
   );
 });
 
+// Evento de Ativação: Limpa caches antigos para evitar conflitos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -33,20 +36,29 @@ self.addEventListener('activate', event => {
       );
     })
   );
+  // Força o novo service worker a assumir o controle da página imediatamente
   return self.clients.claim();
 });
 
+// Evento de Fetch: Intercepta todas as requisições
 self.addEventListener('fetch', event => {
-  if (event.request.url.indexOf('firebase') > -1 || event.request.url.indexOf('googleapis') > -1) {
+  // Ignora requisições do Firebase e Google APIs para evitar problemas com o cache
+  if (event.request.url.includes('firebase') || event.request.url.includes('googleapis')) {
     return;
   }
 
+  // Estratégia: Cache first, depois network
   event.respondWith(
     caches.match(event.request)
       .then(response => {
+        // Se a resposta estiver no cache, retorna do cache.
+        // Se não, busca na rede.
         return response || fetch(event.request).then(networkResponse => {
+          // Após buscar na rede, salva uma cópia no cache dinâmico para uso offline futuro
           return caches.open(CACHE_NOME_DINAMICO).then(cache => {
+            // Clona a resposta, pois ela só pode ser consumida uma vez
             cache.put(event.request.url, networkResponse.clone());
+            // Retorna a resposta original da rede para o navegador
             return networkResponse;
           });
         });

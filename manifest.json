@@ -1,36 +1,21 @@
 {
   "name": "Minha Planilha Financeira",
   "short_name": "Finanças",
-  "scope": "/Planilha-De-Gastos/",
-  "start_url": "/Planilha-De-Gastos/index.html",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#4f46e5",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/Planilha-De-Gastos/images/icon-192x192.png",
+      "src": "images/icon-192x192.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "/Planilha-De-Gastos/images/icon-512x512.png",
+      "src": "images/icon-512x512.png",
       "type": "image/png",
       "sizes": "512x512"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/Planilha-De-Gastos/images/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/Planilha-De-Gastos/images/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow"
     }
   ]
 }
