@@ -1,6 +1,6 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v3'; // Versão incrementada para forçar a atualização
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v3';
-const NOME_DO_REPOSITORIO = '/Planilha-De-Gastos'; // Nome do seu repositório
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v4'; // Versão incrementada
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v4';
+const NOME_DO_REPOSITORIO = '/Planilha-De-Gastos';
 
 const urlsToCache = [
   `${NOME_DO_REPOSITORIO}/`,
@@ -14,7 +14,6 @@ const urlsToCache = [
   `${NOME_DO_REPOSITORIO}/images/icon-512x512.png`
 ];
 
-// Evento de Instalação: Salva os arquivos estáticos principais
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NOME_ESTATICO)
@@ -25,7 +24,6 @@ self.addEventListener('install', event => {
   );
 });
 
-// Evento de Ativação: Limpa caches antigos para evitar conflitos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -38,35 +36,20 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-// Evento de Fetch: Intercepta todas as requisições
 self.addEventListener('fetch', event => {
-  // Ignora requisições do Firebase para evitar problemas com o cache
-  if (event.request.url.indexOf('firebase') > -1) {
+  if (event.request.url.indexOf('firebase') > -1 || event.request.url.indexOf('googleapis') > -1) {
     return;
   }
 
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Se a resposta estiver no cache, retorna do cache
-        if (response) {
-          return response;
-        }
-        // Se não, busca na rede
-        return fetch(event.request)
-          .then(networkResponse => {
-            // E salva uma cópia no cache dinâmico para uso offline futuro
-            return caches.open(CACHE_NOME_DINAMICO)
-              .then(cache => {
-                // Clona a resposta, pois ela só pode ser consumida uma vez
-                cache.put(event.request.url, networkResponse.clone());
-                return networkResponse;
-              });
+        return response || fetch(event.request).then(networkResponse => {
+          return caches.open(CACHE_NOME_DINAMICO).then(cache => {
+            cache.put(event.request.url, networkResponse.clone());
+            return networkResponse;
           });
-      })
-      .catch(() => {
-        // Se a busca na rede falhar (offline) e não houver nada no cache, 
-        // você pode retornar uma página de fallback offline aqui, se tiver uma.
+        });
       })
   );
 });
