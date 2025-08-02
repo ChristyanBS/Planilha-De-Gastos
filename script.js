@@ -3,6 +3,7 @@
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser;
+let deferredPrompt;
 
 var incomes = [], expenses = [], goals = [], investments = [], timeEntries = [], reportChartInstance;
 var expenseCategories = {};
@@ -407,6 +408,7 @@ function setupEventListeners() {
     document.getElementById('calculate-salary-btn').addEventListener('click', calculateNetSalary);
     document.getElementById('add-hour-entry-btn').addEventListener('click', addHourEntry);
     document.getElementById('cancel-hour-edit-btn').addEventListener('click', resetHourForm);
+    document.getElementById('install-pwa-btn').addEventListener('click', handleInstallClick);
 }
 
 
@@ -1117,3 +1119,41 @@ function calculateNetSalary() {
     document.getElementById('res-fgts').textContent = formatCurrency(fgts);
     document.getElementById('res-total-hours').textContent = `${Math.round(totalHours)}h`;
 }
+
+// =======================================================
+//  LÓGICA DE INSTALAÇÃO DO PWA
+// =======================================================
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Impede que o mini-infobar apareça no Chrome
+    e.preventDefault();
+    // Guarda o evento para que possa ser acionado mais tarde.
+    deferredPrompt = e;
+    // Mostra o nosso botão de instalação personalizado
+    const installBtn = document.getElementById('install-pwa-btn');
+    if (installBtn) {
+        installBtn.classList.remove('hidden');
+    }
+});
+
+async function handleInstallClick() {
+    const installBtn = document.getElementById('install-pwa-btn');
+    if (deferredPrompt) {
+        // Mostra o prompt de instalação
+        deferredPrompt.prompt();
+        // Espera o usuário responder ao prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Resposta do usuário ao prompt de instalação: ${outcome}`);
+        // Não podemos usar o evento novamente, então o limpamos
+        deferredPrompt = null;
+        // Esconde o botão de instalação
+        if (installBtn) {
+            installBtn.classList.add('hidden');
+        }
+    }
+}
+
+window.addEventListener('appinstalled', () => {
+    // Limpa o prompt para que não possa ser chamado novamente
+    deferredPrompt = null;
+    console.log('PWA foi instalado com sucesso!');
+});
