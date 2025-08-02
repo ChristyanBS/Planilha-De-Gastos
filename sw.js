@@ -1,14 +1,17 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v2';
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v2';
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v3'; // Versão incrementada para forçar a atualização
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v3';
+const NOME_DO_REPOSITORIO = '/Planilha-De-Gastos'; // Nome do seu repositório
+
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/login.html',
-  '/style.css',
-  '/script.js',
-  '/auth.js',
-  '/manifest.json'
-  // Adicionamos o manifest.json para garantir que ele esteja sempre disponível
+  `${NOME_DO_REPOSITORIO}/`,
+  `${NOME_DO_REPOSITORIO}/index.html`,
+  `${NOME_DO_REPOSITORIO}/login.html`,
+  `${NOME_DO_REPOSITORIO}/style.css`,
+  `${NOME_DO_REPOSITORIO}/script.js`,
+  `${NOME_DO_REPOSITORIO}/auth.js`,
+  `${NOME_DO_REPOSITORIO}/manifest.json`,
+  `${NOME_DO_REPOSITORIO}/images/icon-192x192.png`,
+  `${NOME_DO_REPOSITORIO}/images/icon-512x512.png`
 ];
 
 // Evento de Instalação: Salva os arquivos estáticos principais
@@ -37,6 +40,11 @@ self.addEventListener('activate', event => {
 
 // Evento de Fetch: Intercepta todas as requisições
 self.addEventListener('fetch', event => {
+  // Ignora requisições do Firebase para evitar problemas com o cache
+  if (event.request.url.indexOf('firebase') > -1) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -59,7 +67,6 @@ self.addEventListener('fetch', event => {
       .catch(() => {
         // Se a busca na rede falhar (offline) e não houver nada no cache, 
         // você pode retornar uma página de fallback offline aqui, se tiver uma.
-        // Ex: return caches.match('/offline.html');
       })
   );
 });
