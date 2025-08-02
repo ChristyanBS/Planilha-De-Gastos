@@ -294,22 +294,35 @@
                 <div class="chart-container"><canvas id="report-chart"></canvas></div>
             </div>
             <div id="account-content" class="tab-content hidden">
-                <h3 class="text-xl font-semibold mb-4">Gerenciar Conta</h3>
-                <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg">
-                    <p class="text-gray-600 dark:text-gray-300">Você está logado com o email:</p>
-                    <p id="user-email-display" class="text-lg font-bold text-indigo-700 dark:text-indigo-200"></p>
-                </div>
-                <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-                    <h4 class="text-lg font-medium">Adicionar / Alterar Senha</h4>
-                    <p class="text-sm text-gray-500 mt-1">Se você fez login com o Google, adicione uma senha para ter um método de login alternativo.</p>
-                    <div class="mt-4 max-w-sm">
-                        <label for="new-password" class="block text-sm font-medium mb-1">Nova Senha (mínimo 6 caracteres)</label>
-                        <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="********">
-                        <button id="save-password-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Nova Senha</button>
-                        <p id="password-feedback" class="text-sm mt-2 text-center"></p>
-                    </div>
-                </div>
+    <h3 class="text-xl font-semibold mb-4">Gerenciar Conta</h3>
+    <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg">
+        <p class="text-gray-600 dark:text-gray-300">Você está logado com o email:</p>
+        <p id="user-email-display" class="text-lg font-bold text-indigo-700 dark:text-indigo-200"></p>
+    </div>
+
+    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h4 class="text-lg font-medium">Configurações do Período</h4>
+        <p class="text-sm text-gray-500 mt-1">Defina o dia em que seu período de pagamento começa. Use '1' para um mês de calendário padrão (ex: 01/Jan a 31/Jan).</p>
+        <div class="mt-4 max-w-sm flex items-center gap-4">
+            <div>
+                <label for="setting-start-day" class="block text-sm font-medium mb-1">Dia de Início (1-28)</label>
+                <input type="number" id="setting-start-day" min="1" max="28" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
+            <button id="save-settings-btn" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+        </div>
+        <p id="settings-feedback" class="text-sm mt-2 text-center"></p>
+    </div>
+    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h4 class="text-lg font-medium">Adicionar / Alterar Senha</h4>
+        <p class="text-sm text-gray-500 mt-1">Se você fez login com o Google, adicione uma senha para ter um método de login alternativo.</p>
+        <div class="mt-4 max-w-sm">
+            <label for="new-password" class="block text-sm font-medium mb-1">Nova Senha (mínimo 6 caracteres)</label>
+            <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="********">
+            <button id="save-password-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Nova Senha</button>
+            <p id="password-feedback" class="text-sm mt-2 text-center"></p>
+        </div>
+    </div>
+</div>
         </div>
 
         <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">

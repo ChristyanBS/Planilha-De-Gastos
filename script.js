@@ -9,6 +9,7 @@ var incomes = [], expenses = [], goals = [], investments = [], timeEntries = [],
 var expenseCategories = {};
 var customDiscounts = [];
 var customProventos = [];
+var payPeriodStartDay = 1;
 
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth() + 1;
@@ -110,6 +111,8 @@ async function loadDataFromFirestore() {
         document.getElementById('header-subtitle').textContent = settings.headerSubtitle || `${currentUser.displayName || currentUser.email}`;
         customDiscounts = settings.customDiscounts || [];
         customProventos = settings.customProventos || [];
+        payPeriodStartDay = settings.payPeriodStartDay || 1; // Carrega a configuração ou usa 1 como padrão
+        document.getElementById('setting-start-day').value = payPeriodStartDay;
         expenseCategories = settings.expenseCategories || {
             housing: 'Moradia', food: 'Alimentação', transport: 'Transporte',
             health: 'Saúde', education: 'Educação', entertainment: 'Lazer',
@@ -261,13 +264,36 @@ async function handleDelete(type, id) {
 
 async function saveUserSettings() {
     if(!currentUser) return;
+
+    const newStartDay = parseInt(document.getElementById('setting-start-day').value);
+    const feedbackEl = document.getElementById('settings-feedback');
+
+    if(isNaN(newStartDay) || newStartDay < 1 || newStartDay > 28) {
+        feedbackEl.textContent = "Por favor, insira um dia válido entre 1 e 28.";
+        feedbackEl.className = 'text-sm mt-2 text-center text-red-500';
+        return;
+    }
+
+    payPeriodStartDay = newStartDay; // Atualiza a variável global
+
     const settings = {
         headerSubtitle: document.getElementById('header-subtitle').textContent,
         expenseCategories,
         customDiscounts,
-        customProventos
+        customProventos,
+        payPeriodStartDay: payPeriodStartDay // Salva o novo valor
     };
-    await db.collection('users').doc(currentUser.uid).set(settings, { merge: true });
+
+    try {
+        await db.collection('users').doc(currentUser.uid).set(settings, { merge: true });
+        feedbackEl.textContent = "Configurações salvas com sucesso!";
+        feedbackEl.className = 'text-sm mt-2 text-center text-green-500';
+        updateDashboard(); // Atualiza a visualização com o novo período
+    } catch (error) {
+        console.error("Erro ao salvar configurações:", error);
+        feedbackEl.textContent = "Erro ao salvar. Tente novamente.";
+        feedbackEl.className = 'text-sm mt-2 text-center text-red-500';
+    }
 }
 
 async function clearAllUserData() {
@@ -409,6 +435,7 @@ function setupEventListeners() {
     document.getElementById('add-hour-entry-btn').addEventListener('click', addHourEntry);
     document.getElementById('cancel-hour-edit-btn').addEventListener('click', resetHourForm);
     document.getElementById('install-pwa-btn').addEventListener('click', handleInstallClick);
+    document.getElementById('save-settings-btn').addEventListener('click', saveUserSettings);
 }
 
 
@@ -422,17 +449,19 @@ function setupEventListeners() {
  * @returns {{startDate: Date, endDate: Date}} - O objeto com as datas de início e fim.
  */
 function getPayPeriodRange(year, month) {
-    const PAY_PERIOD_START_DAY = 24;
-    const PAY_PERIOD_END_DAY = 23;
+    const startDay = payPeriodStartDay; // Usa a variável global
 
-    // O fim do período é no dia 23 do mês selecionado
-    const endDate = new Date(year, month - 1, PAY_PERIOD_END_DAY);
-
-    // O início do período é no dia 24 do mês anterior
-    // O construtor de Date lida corretamente com o rollover do ano (ex: se month for 1, month-2 será -1, resultando em Dezembro do ano anterior)
-    const startDate = new Date(year, month - 2, PAY_PERIOD_START_DAY);
-
-    return { startDate, endDate };
+    if (startDay === 1) {
+        // Lógica para mês de calendário padrão
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 0); // O dia 0 do próximo mês retorna o último dia do mês atual
+        return { startDate, endDate };
+    } else {
+        // Lógica para período personalizado (ex: dia 24 a 23)
+        const endDate = new Date(year, month - 1, startDay - 1);
+        const startDate = new Date(year, month - 2, startDay);
+        return { startDate, endDate };
+    }
 }
 
 async function editHeaderSubtitle() {
