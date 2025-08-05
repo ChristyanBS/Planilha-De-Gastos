@@ -111,6 +111,7 @@ function showConfirmation(title, message, confirmButtonClass = 'bg-red-600 hover
 // =======================================================
 document.addEventListener('DOMContentLoaded', function() {
     auth.onAuthStateChanged(async user => {
+        populateYearDropdown();
         if (user) {
             currentUser = user;
             document.getElementById('main-container').style.display = 'block';
@@ -658,6 +659,30 @@ async function saveHeaderSubtitle(inputElement) {
     await saveUserSettings();
 }
 
+// Substitua a versão anterior por esta no seu script.js
+function populateYearDropdown() {
+    const yearSelect = document.getElementById('year-select');
+    const currentYearDate = new Date().getFullYear();
+
+    // ALTERAÇÃO AQUI: Definimos o ano de início como 2025
+    const startYear = 2025; 
+    const endYear = currentYearDate + 10; // Continua indo 10 anos para o futuro
+
+    // Limpa qualquer opção que possa existir
+    yearSelect.innerHTML = ''; 
+
+    // Cria as opções de 2025 até o ano final
+    for (let year = startYear; year <= endYear; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    }
+
+    // Garante que o ano selecionado por padrão seja o ano atual (2025)
+    yearSelect.value = currentYearDate;
+}
+
 function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0); }
 function parseBrazilianNumber(stringValue) {
     if (!stringValue || typeof stringValue !== 'string') return NaN;
@@ -1037,7 +1062,7 @@ function handleEdit(type, id) {
         populateCategoryDropdown();
         document.getElementById('installments-group').classList.add('hidden');
         document.getElementById('expense-installments').value = 1;
-        document.getElementById('expense-paid-checkbox').checked = true;
+        document.getElementById('expense-paid-checkbox').checked = false;
     }
     if (id) {
         saveBtn.setAttribute('data-id', id);
