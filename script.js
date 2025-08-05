@@ -232,11 +232,14 @@ async function loadDataFromFirestore() {
     renderCustomProventos();
 }
 
+// SUBSTITUA TODA a sua função addOrUpdateItem por esta:
+// SUBSTITUA NOVAMENTE a função addOrUpdateItem por esta versão final
 async function addOrUpdateItem(type, id) {
     const itemData = {};
     let isValid = false;
     const getNumericValue = (elementId) => parseBrazilianNumber(document.getElementById(elementId).value);
 
+    // Lógica para Renda, Metas e Investimentos (inalterada)
     if (type === 'income') {
         itemData.source = document.getElementById('income-source').value.trim();
         itemData.amount = getNumericValue('income-amount');
@@ -256,7 +259,10 @@ async function addOrUpdateItem(type, id) {
         itemData.yield = getNumericValue('investment-yield') || 0;
         itemData.date = document.getElementById('investment-date').value;
         if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) isValid = true;
-    } else if (type === 'expense') {
+    } 
+    
+    // LÓGICA CORRIGIDA PARA DESPESAS
+    else if (type === 'expense') {
         itemData.description = document.getElementById('expense-description').value.trim();
         itemData.amount = getNumericValue('expense-amount');
         itemData.category = document.getElementById('expense-category').value;
@@ -264,38 +270,92 @@ async function addOrUpdateItem(type, id) {
         itemData.date = document.getElementById('expense-date').value;
         itemData.isPaid = document.getElementById('expense-paid-checkbox').checked;
         const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-        if (itemData.description && !isNaN(itemData.amount) && itemData.amount > 0 && itemData.date) {
-            try {
-                if (id) {
-                    const originalItem = expenses.find(item => item.id === id);
-                    const isInstallment = /\(\d+\/\d+\)$/.test(originalItem.description);
-                    itemData.description = isInstallment ? originalItem.description : itemData.description;
+
+        if (!itemData.description || isNaN(itemData.amount) || itemData.amount <= 0 || !itemData.date) {
+            showToast('Por favor, preencha todos os campos corretamente.', 'error');
+            return;
+        }
+
+        try {
+            if (id) { // Editando uma despesa existente
+                const originalItem = expenses.find(item => item.id === id);
+
+                if (originalItem.installmentGroupId && originalItem.category !== itemData.category) {
+                    const confirmed = await showConfirmation(
+                        'Atualizar Parcelas',
+                        'Você alterou a categoria de uma despesa parcelada. Deseja aplicar esta nova categoria para todas as parcelas futuras desta compra?',
+                        'bg-indigo-600 hover:bg-indigo-700'
+                    );
+
+                    if (confirmed) {
+                        const batch = db.batch();
+                        const userDocRef = db.collection('users').doc(currentUser.uid);
+                        const futureInstallmentsQuery = await userDocRef.collection('expenses')
+                            .where('installmentGroupId', '==', originalItem.installmentGroupId)
+                            .where('date', '>=', originalItem.date)
+                            .get();
+                        
+                        futureInstallmentsQuery.docs.forEach(doc => {
+                            // CORREÇÃO: Verificamos qual item é o atual para atualizar todos os dados,
+                            // e nos outros, atualizamos apenas a categoria.
+                            if (doc.id === id) {
+                                batch.update(doc.ref, itemData);
+                            } else {
+                                batch.update(doc.ref, { category: itemData.category });
+                            }
+                        });
+                        
+                        await batch.commit();
+
+                        expenses.forEach(exp => {
+                            if (exp.installmentGroupId === originalItem.installmentGroupId && new Date(exp.date) >= new Date(originalItem.date)) {
+                                exp.category = itemData.category;
+                            }
+                        });
+                        const index = expenses.findIndex(item => item.id === id);
+                        if (index > -1) expenses[index] = { ...expenses[index], ...itemData };
+                        showToast('Todas as parcelas futuras foram atualizadas!', 'success');
+                    } else {
+                        await db.collection('users').doc(currentUser.uid).collection('expenses').doc(id).update(itemData);
+                        const index = expenses.findIndex(item => item.id === id);
+                        if (index > -1) expenses[index] = { ...expenses[index], ...itemData };
+                    }
+                } else {
                     await db.collection('users').doc(currentUser.uid).collection('expenses').doc(id).update(itemData);
                     const index = expenses.findIndex(item => item.id === id);
                     if (index > -1) expenses[index] = { ...expenses[index], ...itemData };
-                } else {
-                    const groupId = (installments > 1) ? Date.now().toString(36) : null;
-                    const originalDate = new Date(itemData.date + 'T00:00:00');
-                    for (let i = 1; i <= installments; i++) {
-                        const newExpense = { ...itemData };
-                        newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
-                        if (groupId) newExpense.installmentGroupId = groupId;
-                        const installmentDate = new Date(originalDate);
-                        installmentDate.setMonth(originalDate.getMonth() + (i - 1));
-                        newExpense.date = installmentDate.toISOString().split('T')[0];
-                        const docRef = await db.collection('users').doc(currentUser.uid).collection('expenses').add(newExpense);
-                        expenses.push({ id: docRef.id, ...newExpense });
-                    }
                 }
-                updateDashboard();
-                closeModal('expense-modal');
-                showToast('Despesa salva com sucesso!', 'success');
-            } catch(e) { console.error("Erro ao salvar despesa: ", e); showToast("Falha ao salvar despesa.", 'error'); }
-        } else {
-            showToast('Por favor, preencha todos os campos corretamente.', 'error');
+            } else { // Criando uma nova despesa
+                const groupId = (installments > 1) ? Date.now().toString(36) + Math.random().toString(36).substr(2) : null;
+                const originalDate = new Date(itemData.date + 'T00:00:00');
+                const batch = db.batch(); // Usar batch para criar também é mais eficiente
+                const userDocRef = db.collection('users').doc(currentUser.uid);
+
+                for (let i = 1; i <= installments; i++) {
+                    const newExpense = { ...itemData };
+                    newExpense.description = installments > 1 ? `${itemData.description} (${i}/${installments})` : itemData.description;
+                    if (groupId) newExpense.installmentGroupId = groupId;
+                    const installmentDate = new Date(originalDate);
+                    installmentDate.setMonth(originalDate.getMonth() + (i - 1));
+                    newExpense.date = installmentDate.toISOString().split('T')[0];
+                    
+                    const newDocRef = userDocRef.collection('expenses').doc(); // Cria uma referência com ID novo
+                    batch.set(newDocRef, newExpense);
+                }
+                await batch.commit();
+            }
+            
+            await updateDashboard();
+            closeModal('expense-modal');
+            showToast('Despesa salva com sucesso!', 'success');
+        } catch(e) { 
+            console.error("Erro ao salvar despesa: ", e); 
+            showToast("Falha ao salvar despesa.", 'error'); 
         }
         return;
     }
+
+    // Lógica genérica para outros tipos (inalterada)
     if (!isValid) {
         showToast('Por favor, preencha os campos obrigatórios e verifique se o valor é maior que zero.', 'error');
         return;
@@ -311,7 +371,7 @@ async function addOrUpdateItem(type, id) {
             const docRef = await db.collection('users').doc(currentUser.uid).collection(collectionName).add(itemData);
             dataArray.push({ id: docRef.id, ...itemData });
         }
-        updateDashboard();
+        await updateDashboard();
         closeModal(`${type}-modal`);
         showToast(`Item salvo com sucesso!`, 'success');
     } catch(e) {
