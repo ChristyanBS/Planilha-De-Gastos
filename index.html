@@ -65,7 +65,7 @@
                         <option value="11">Novembro</option> <option value="12">Dezembro</option>
                     </select>
                     <select id="year-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
-                    
+
                     </select>
                 </div>
             </div>
@@ -144,6 +144,7 @@
             </div>
              <div id="hours-content" class="tab-content hidden">
                 <h3 class="text-xl font-semibold mb-4">Registro de Horas Trabalhadas</h3>
+                 <p id="hours-period-display" class="text-sm text-center text-gray-500 dark:text-gray-400 -mt-2 mb-4"></p>
                 <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                         
@@ -311,6 +312,20 @@
             <button id="save-settings-btn" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
         </div>
         <p id="settings-feedback" class="text-sm mt-2 text-center"></p>
+    </div>
+    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h4 class="text-lg font-medium">Configurações de Horas Extras</h4>
+        <p class="text-sm text-gray-500 mt-1">Defina o período de apuração para o cálculo de horas extras (ex: do dia 24 ao dia 23).</p>
+        <div class="mt-4 max-w-sm flex items-center gap-4">
+            <div>
+                <label for="setting-overtime-start-day" class="block text-sm font-medium mb-1">Dia de Início (1-31)</label>
+                <input type="number" id="setting-overtime-start-day" min="1" max="31" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="setting-overtime-end-day" class="block text-sm font-medium mb-1">Dia de Fim (1-31)</label>
+                <input type="number" id="setting-overtime-end-day" min="1" max="31" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
     </div>
     <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
         <h4 class="text-lg font-medium">Adicionar / Alterar Senha</h4>
