@@ -1047,24 +1047,28 @@ function closeModal(modalId) {
     }
 }
 
+// SUBSTITUA TODA a sua função handleEdit por esta versão:
 function handleEdit(type, id) {
     const modalId = `${type}-modal`;
     const saveBtn = document.getElementById(`save-${type}`);
     const modalTitle = document.getElementById(modalId).querySelector('h3');
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento' };
     const form = document.getElementById(modalId).querySelector('div > div');
+
     form.querySelectorAll('input, select').forEach(el => {
         if (el.type === 'text' || el.type === 'date' || el.type === 'number') el.value = '';
         else if(el.type === 'checkbox') el.checked = false;
         else if (el.tagName === 'SELECT') el.selectedIndex = 0;
     });
+
     if (type === 'expense') {
         populateCategoryDropdown();
         document.getElementById('installments-group').classList.add('hidden');
         document.getElementById('expense-installments').value = 1;
-        document.getElementById('expense-paid-checkbox').checked = false;
+        document.getElementById('expense-paid-checkbox').checked = false; // Corrigido anteriormente
     }
-    if (id) {
+
+    if (id) { // Se estiver editando um item existente
         saveBtn.setAttribute('data-id', id);
         saveBtn.textContent = 'Atualizar';
         modalTitle.textContent = `Editar ${ptTerms[type]}`;
@@ -1098,15 +1102,33 @@ function handleEdit(type, id) {
                 document.getElementById('investment-date').value = item.date;
             }
         }
-    } else {
+    } else { // Se estiver criando um item novo
         saveBtn.removeAttribute('data-id');
         saveBtn.textContent = 'Salvar';
         modalTitle.textContent = `Adicionar ${ptTerms[type]}`;
         const dateField = document.getElementById(`${type}-date`);
-        if (dateField) dateField.value = new Date().toISOString().split('T')[0];
+        
+        // =======================================================
+        // AQUI ESTÁ A NOVA LÓGICA INTELIGENTE PARA A DATA
+        // =======================================================
+        if (dateField) {
+            const today = new Date();
+            // Verifica se o período selecionado é o mesmo mês e ano de hoje
+            if (currentYear === today.getFullYear() && currentMonth === today.getMonth() + 1) {
+                // Se for, usa a data de hoje
+                dateField.value = today.toISOString().split('T')[0];
+            } else {
+                // Se for outro mês/ano, usa o dia 1 daquele período
+                // Isso evita erros de fuso horário e é mais seguro
+                const monthString = String(currentMonth).padStart(2, '0');
+                dateField.value = `${currentYear}-${monthString}-01`;
+            }
+        }
+        // =======================================================
     }
     openModal(modalId);
 }
+
 function sendIncomeToCalculator(id) {
     const incomeItem = incomes.find(item => item.id === id);
     if (!incomeItem) return;
