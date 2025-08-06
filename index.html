@@ -143,45 +143,48 @@
                 </div>
             </div>
              <div id="hours-content" class="tab-content hidden">
-                <h3 class="text-xl font-semibold mb-4">Registro de Horas Trabalhadas</h3>
-                 <p id="hours-period-display" class="text-sm text-center text-gray-500 dark:text-gray-400 -mt-2 mb-4"></p>
-                <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                        
-                        <div class="md:col-span-1">
-                            <label for="hour-date" class="block text-sm font-medium">Data</label>
-                            <input type="date" id="hour-date" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                            <div class="mt-2 flex items-center">
-                                <input id="hour-is-holiday" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                                <label for="hour-is-holiday" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Feriado (100%)</label>
-                            </div>
-                        </div>
-                        
-                        <div class="md:col-span-1"><label for="hour-entry" class="block text-sm font-medium">Entrada</label><input type="time" id="hour-entry" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                        <div class="md:col-span-1"><label for="hour-break-start" class="block text-sm font-medium">Início Intervalo</label><input type="time" id="hour-break-start" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                        <div class="md:col-span-1"><label for="hour-break-end" class="block text-sm font-medium">Fim Intervalo</label><input type="time" id="hour-break-end" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                        <div class="md:col-span-1"><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                        
-                        <div class="md:col-span-1 flex items-end space-x-2">
-                            <button id="add-hour-entry-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i>Adicionar</button>
-                            <button id="cancel-hour-edit-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
-                    <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Horas Trabalhadas (Período)</p><p id="total-worked-hours" class="font-bold text-lg">0h 0m</p></div>
-                    <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 50% (Período)</p><p id="total-overtime-50" class="font-bold text-lg">0h 0m</p></div>
-                    <div class="bg-red-50 dark:bg-red-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 100% (Período)</p><p id="total-overtime-100" class="font-bold text-lg">0h 0m</p></div>
-                </div>
-                <div class="table-container">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr><th class="px-6 py-3">Data</th><th class="px-6 py-3">Jornada</th><th class="px-6 py-3">Intervalo</th><th class="px-6 py-3">Total Dia</th><th class="px-6 py-3">H. Extra</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
-                        </thead>
-                        <tbody id="hours-table"></tbody>
-                    </table>
+    <h3 class="text-xl font-semibold mb-4">Registro de Horas Trabalhadas</h3>
+    <p id="hours-period-display" class="text-sm text-center text-gray-500 dark:text-gray-400 -mt-2 mb-4"></p>
+    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
+            
+            <div class="md:col-span-2">
+                <label for="hour-date" class="block text-sm font-medium">Data</label>
+                <input type="date" id="hour-date" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            </div>
+            
+            <div><label for="hour-entry" class="block text-sm font-medium">Entrada</label><input type="time" id="hour-entry" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+            <div><label for="hour-break-start" class="block text-sm font-medium">Início Intervalo</label><input type="time" id="hour-break-start" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+            <div><label for="hour-break-end" class="block text-sm font-medium">Fim Intervalo</label><input type="time" id="hour-break-end" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+            
+            <div class="flex items-end gap-3">
+                 <div class="flex-grow"><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+                 <div class="flex items-center pb-2 whitespace-nowrap">
+                    <input id="hour-is-holiday" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                    <label for="hour-is-holiday" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Feriado</label>
                 </div>
             </div>
+            
+            <div class="flex items-end space-x-2">
+                <button id="add-hour-entry-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i>Adicionar</button>
+                <button id="cancel-hour-edit-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
+        <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Horas Trabalhadas (Período)</p><p id="total-worked-hours" class="font-bold text-lg">0h 0m</p></div>
+        <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 50% (Período)</p><p id="total-overtime-50" class="font-bold text-lg">0h 0m</p></div>
+        <div class="bg-red-50 dark:bg-red-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 100% (Período)</p><p id="total-overtime-100" class="font-bold text-lg">0h 0m</p></div>
+    </div>
+    <div class="table-container">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr><th class="px-6 py-3">Data</th><th class="px-6 py-3">Jornada</th><th class="px-6 py-3">Intervalo</th><th class="px-6 py-3">Total Dia</th><th class="px-6 py-3">H. Extra</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+            </thead>
+            <tbody id="hours-table"></tbody>
+        </table>
+    </div>
+</div>
             <div id="goals-content" class="tab-content hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold">Metas Financeiras</h3>
