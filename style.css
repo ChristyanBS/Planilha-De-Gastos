@@ -61,6 +61,10 @@
 .dark .badge-cash { background-color: #423d1d; color: #fde047; }
 .dark .badge-transfer { background-color: #2e104d; color: #d8b4fe; }
 
+html {
+    overflow-y: scroll;
+}
+
 @media print {
     .no-print { display: none !important; }
     body { background-color: white !important; color: black !important; }

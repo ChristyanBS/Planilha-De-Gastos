@@ -440,19 +440,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBaU9Ug3T8JQVX5wspA5ng6KXBpB5HgGJ8",
-            authDomain: "planilha-de-gastos-10a46.firebaseapp.com",
-            projectId: "planilha-de-gastos-10a46",
-            storageBucket: "planilha-de-gastos-10a46.firebasestorage.app",
-            messagingSenderId: "515745025757",
-            appId: "1:515745025757:web:3ca2c314da8cbee8549534"
-        };
-        firebase.initializeApp(firebaseConfig);
-    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="script.js"></script>
+    <script src="utils.js" type="module"></script>
+<script src="ui.js" type="module"></script>
+<script src="firestore.js" type="module"></script>
+<script src="calculator.js" type="module"></script>
+
+<script src="main.js" type="module"></script>
      <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
