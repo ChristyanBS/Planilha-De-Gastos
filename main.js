@@ -34,6 +34,11 @@ const state = {
 // --- LÓGICA PRINCIPAL ---
 async function updateDashboard() {
     if (!state.currentUser) return;
+
+    const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
+    state.goals = initialData.goals;
+    state.investments = initialData.investments;
+    
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
     const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
 
