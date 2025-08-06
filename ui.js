@@ -133,6 +133,19 @@ export function showEditModal(type, item, state) {
 
 // --- Funções de UI Geral ---
 
+export function updatePrivacyButton(isPrivate) {
+    const btn = document.getElementById('privacy-toggle-btn');
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    if (isPrivate) {
+        icon.className = 'fas fa-eye-slash';
+        btn.title = 'Mostrar Valores';
+    } else {
+        icon.className = 'fas fa-eye';
+        btn.title = 'Ocultar Valores';
+    }
+}
+
 export function updateThemeButton(theme) {
     const btn = document.getElementById('theme-toggle-btn');
     if (!btn) return;

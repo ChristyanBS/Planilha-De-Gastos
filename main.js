@@ -1,5 +1,4 @@
 // Arquivo: main.js (VERSÃO FINAL COMPLETA)
-
 import * as ui from './ui.js';
 import * as db from './firestore.js';
 import * as utils from './utils.js';
@@ -38,7 +37,7 @@ async function updateDashboard() {
     const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
     state.goals = initialData.goals;
     state.investments = initialData.investments;
-    
+
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
     const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
 
@@ -63,10 +62,9 @@ async function updateDashboard() {
     }), tableCallbacks);
 
     if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
-        ui.generateReport(state, totals);
+        handleGenerateReport();
     }
 }
-
 // --- HANDLERS DE EVENTOS (Ações do Usuário) ---
 
 async function handleAddCustomItem(type) {
@@ -352,6 +350,12 @@ function setupEventListeners() {
         document.getElementById(`cancel-${type}`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
     });
 
+     document.getElementById('privacy-toggle-btn').addEventListener('click', () => {
+        const isPrivate = utils.togglePrivacyMode();
+        ui.updatePrivacyButton(isPrivate);
+        updateDashboard(); // Re-renderiza tudo com os valores ocultos/visíveis
+    });
+
     // Lógica das Abas
     // CÓDIGO CORRIGIDO PARA O QUAL VOCÊ DEVE MUDAR
 document.querySelectorAll('.tab-btn').forEach(button => {
@@ -392,6 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.documentElement.classList.add('dark');
             }
             ui.updateThemeButton(localStorage.getItem('theme') || 'light');
+            
+             const isPrivate = utils.initPrivacyMode();
+            ui.updatePrivacyButton(isPrivate);
             
             setupEventListeners();
             await updateDashboard();
