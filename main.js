@@ -65,6 +65,38 @@ async function updateDashboard() {
         handleGenerateReport();
     }
 }
+
+/**
+ * Redesenha a interface com os dados já existentes no 'state', sem buscar no banco de dados.
+ * É uma versão "leve" do updateDashboard para tarefas puramente visuais.
+ */
+function rerenderUI() {
+    if (!state.currentUser) return;
+
+    // Pula a busca no banco de dados e vai direto para os cálculos e renderização
+    const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+
+    const totals = core.calculateTotals(state, periodRange, overtimeRange);
+    
+    ui.updatePeriodDisplay(periodRange, overtimeRange);
+    ui.updateDashboardCards(totals);
+    
+    const tableCallbacks = { onEdit: handleEditItem, onDelete: handleDeleteItem };
+    ui.updateIncomeTable(state.incomes, { ...tableCallbacks, onCalc: sendIncomeToCalculator });
+    ui.updateExpensesTable(state.expenses, state.settings.expenseCategories, { ...tableCallbacks, onStatusToggle: handleExpenseStatusToggle });
+    ui.updateGoalsTable(state.goals, totals.monthSavings, totals.totalInvested, tableCallbacks);
+    ui.updateInvestmentsTable(state.investments, tableCallbacks);
+    ui.updateHoursTable(state.timeEntries.filter(t => {
+        const itemDate = new Date(t.date + 'T00:00:00');
+        return itemDate >= overtimeRange.startDate && itemDate <= overtimeRange.endDate;
+    }), tableCallbacks);
+
+    if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
+        ui.generateReport(state, totals);
+    }
+}
+
 // --- HANDLERS DE EVENTOS (Ações do Usuário) ---
 
 async function handleAddCustomItem(type) {
@@ -350,10 +382,10 @@ function setupEventListeners() {
         document.getElementById(`cancel-${type}`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
     });
 
-     document.getElementById('privacy-toggle-btn').addEventListener('click', () => {
+    document.getElementById('privacy-toggle-btn').addEventListener('click', () => {
         const isPrivate = utils.togglePrivacyMode();
         ui.updatePrivacyButton(isPrivate);
-        updateDashboard(); // Re-renderiza tudo com os valores ocultos/visíveis
+        rerenderUI(); // Re-renderiza tudo com os valores ocultos/visíveis
     });
 
     // Lógica das Abas
