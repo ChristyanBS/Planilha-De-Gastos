@@ -6,6 +6,52 @@ let reportChartInstance;
 
 // --- Funções de Notificação ---
 
+/**
+ * Mostra um pop-up de confirmação com até 3 opções customizáveis.
+ * @returns {Promise<string>} Retorna uma string identificando o botão clicado ('confirm', 'secondary', 'cancel').
+ */
+export function showAdvancedConfirmation({ title, message, confirmText = 'Confirmar', confirmClass = 'bg-red-600 hover:bg-red-700', secondaryText = null, secondaryClass = 'bg-gray-500 hover:bg-gray-600' }) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirmation-modal');
+        const titleEl = document.getElementById('confirmation-title');
+        const messageEl = document.getElementById('confirmation-message');
+        const okBtn = document.getElementById('confirm-ok-btn');
+        const cancelBtn = document.getElementById('confirm-cancel-btn');
+
+        // Remove o botão secundário antigo se ele existir
+        const oldSecondaryBtn = document.getElementById('confirm-secondary-btn');
+        if (oldSecondaryBtn) oldSecondaryBtn.remove();
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        // Configura o botão principal (OK)
+        okBtn.textContent = confirmText;
+        okBtn.className = `font-bold py-2 px-5 rounded-lg text-white ${confirmClass}`;
+
+        // Se um botão secundário for necessário, cria e configura
+        if (secondaryText) {
+            const secondaryBtn = document.createElement('button');
+            secondaryBtn.id = 'confirm-secondary-btn';
+            secondaryBtn.textContent = secondaryText;
+            secondaryBtn.className = `font-bold py-2 px-5 rounded-lg text-white ${secondaryClass}`;
+            // Insere o botão secundário antes do botão de cancelar
+            cancelBtn.parentNode.insertBefore(secondaryBtn, cancelBtn);
+            
+            const handleSecondary = () => { closeModal('confirmation-modal'); resolve('secondary'); };
+            secondaryBtn.addEventListener('click', handleSecondary, { once: true });
+        }
+
+        openModal('confirmation-modal');
+
+        const handleOk = () => { closeModal('confirmation-modal'); resolve('confirm'); };
+        const handleCancel = () => { closeModal('confirmation-modal'); resolve('cancel'); };
+        
+        okBtn.addEventListener('click', handleOk, { once: true });
+        cancelBtn.addEventListener('click', handleCancel, { once: true });
+    });
+}
+
 export function showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -273,6 +319,39 @@ export function displaySalaryResults(results, settings) {
 
 // --- Funções de Tabela ---
 
+export function updateRecurringItemsTable(recurringIncomes, recurringExpenses, categories, callbacks) {
+    // Tabela de Rendas Fixas
+    createTable('recurring-incomes-table', recurringIncomes, item => {
+        const row = document.createElement('tr');
+        const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
+        row.innerHTML = `
+            <td class="px-6 py-4">${item.source}</td>
+            <td class="px-6 py-4">${formatCurrency(item.amount)}</td>
+            <td class="px-6 py-4">${incomeTypeLabels[item.type] || ''}</td>
+            <td class="px-6 py-4">Todo dia ${item.dayOfMonth}</td>
+            <td class="px-6 py-4 text-right no-print">
+                <button class="delete-btn" data-id="${item.id}" data-type="recurringIncome"><i class="fas fa-trash text-red-600"></i></button>
+            </td>`;
+        return row;
+    });
+    document.querySelectorAll('#recurring-incomes-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
+
+    // Tabela de Despesas Fixas
+    createTable('recurring-expenses-table', recurringExpenses, item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="px-6 py-4">${item.description}</td>
+            <td class="px-6 py-4">${formatCurrency(item.amount)}</td>
+            <td class="px-6 py-4">${categories[item.category] || item.category}</td>
+            <td class="px-6 py-4">Todo dia ${item.dayOfMonth}</td>
+            <td class="px-6 py-4 text-right no-print">
+                <button class="delete-btn" data-id="${item.id}" data-type="recurringExpense"><i class="fas fa-trash text-red-600"></i></button>
+            </td>`;
+        return row;
+    });
+    document.querySelectorAll('#recurring-expenses-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
+}
+
 function getPaymentMethodBadge(payment) {
     const labels = { credit: 'Crédito', debit: 'Débito', pix: 'PIX', cash: 'Dinheiro', transfer: 'Transferência' };
     const classes = {
@@ -299,8 +378,11 @@ export function updateIncomeTable(incomes, callbacks) {
     const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
     createTable('incomes-table', incomes, item => {
         const row = document.createElement('tr');
+        // Adiciona um ícone se o item for fixo (recorrente)
+        const recurringIcon = item.isRecurring ? '<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>' : '';
+
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap">${item.source}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${item.source}${recurringIcon}</td>
             <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td>
             <td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || ''}</td>
             <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
@@ -317,16 +399,21 @@ export function updateIncomeTable(incomes, callbacks) {
     document.querySelectorAll('#incomes-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
 }
 
+// SUBSTITUA A FUNÇÃO updateExpensesTable EM ui.js PELA VERSÃO ABAIXO
+
 export function updateExpensesTable(expenses, categories, callbacks) {
     createTable('expenses-table', expenses, item => {
         const row = document.createElement('tr');
         if (item.isPaid) row.classList.add('expense-paid');
+        // Adiciona um ícone se o item for fixo (recorrente)
+        const recurringIcon = item.isRecurring ? '<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>' : '';
+
         row.innerHTML = `
             <td class="px-2 py-4 whitespace-nowrap text-center no-print">
                 <i class="fas ${item.isPaid ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-red-500'} status-toggle" data-id="${item.id}" title="${item.isPaid ? 'Paga' : 'Pendente'}"></i>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">${categories[item.category] || item.category}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${item.description}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${item.description}${recurringIcon}</td>
             <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td>
             <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
             <td class="px-6 py-4 whitespace-nowrap">${getPaymentMethodBadge(item.payment)}</td>
@@ -336,6 +423,7 @@ export function updateExpensesTable(expenses, categories, callbacks) {
             </td>`;
         return row;
     });
+    
     document.querySelectorAll('#expenses-table .status-toggle').forEach(btn => btn.addEventListener('click', () => callbacks.onStatusToggle(btn.dataset.id)));
     document.querySelectorAll('#expenses-table .edit-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onEdit(btn.dataset.type, btn.dataset.id)));
     document.querySelectorAll('#expenses-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));

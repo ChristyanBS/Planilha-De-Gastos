@@ -27,9 +27,10 @@
         <header class="mb-8">
     <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0 mb-4">
         <div>
-            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
-            <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar">Christyan & Maria</h2>
-        </div>
+    <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
+    <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
+    <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
+</div>
         <div class="no-print flex items-center space-x-2">
             <button id="install-pwa-btn" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-full flex items-center shadow-sm">
                 <i class="fas fa-download mr-2"></i>
@@ -122,6 +123,42 @@
                     </table>
                 </div>
             </div>
+            <div id="recurring-content" class="tab-content hidden">
+    <h3 class="text-xl font-semibold mb-4">Gerenciar Itens Fixos</h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Aqui você pode ver e apagar os modelos de suas rendas e despesas que se repetem todo mês.</p>
+    
+    <h4 class="text-lg font-semibold mb-2">Rendas Fixas</h4>
+    <div class="table-container mb-6">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th class="px-6 py-3">Fonte</th>
+                    <th class="px-6 py-3">Valor</th>
+                    <th class="px-6 py-3">Tipo</th>
+                    <th class="px-6 py-3">Dia do Mês</th>
+                    <th class="px-6 py-3 text-right no-print">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="recurring-incomes-table"></tbody>
+        </table>
+    </div>
+
+    <h4 class="text-lg font-semibold mb-2">Despesas Fixas</h4>
+    <div class="table-container">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th class="px-6 py-3">Descrição</th>
+                    <th class="px-6 py-3">Valor</th>
+                    <th class="px-6 py-3">Categoria</th>
+                    <th class="px-6 py-3">Dia do Mês</th>
+                    <th class="px-6 py-3 text-right no-print">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="recurring-expenses-table"></tbody>
+        </table>
+    </div>
+</div>
             <div id="expenses-content" class="tab-content hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-xl font-semibold">Despesas do Período</h3>
@@ -355,6 +392,10 @@
                     <input type="text" id="income-amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <select id="income-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="fixed">Fixo</option><option value="variable">Variável</option><option value="extra">Extra</option></select>
                     <input type="date" id="income-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                     <div class="flex items-center pt-2">
+                         <input id="income-isRecurring" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                         <label for="income-isRecurring" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Renda Fixa (Repetir todo mês)</label>
+                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                         <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
@@ -383,6 +424,10 @@
                      <div class="flex items-center pt-2">
                         <input id="expense-paid-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                         <label for="expense-paid-checkbox" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Marcar como paga</label>
+                    </div>
+                    <div class="flex items-center pt-2">
+                        <input id="expense-isRecurring" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <label for="expense-isRecurring" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Despesa Fixa (Repetir todo mês)</label>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>

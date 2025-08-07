@@ -5,6 +5,25 @@ import { showToast, showConfirmation } from './ui.js';
 
 // --- FUNÇÕES DE LEITURA (READ) ---
 
+export async function loadRecurringData(db, currentUser) {
+    const userDocRef = db.collection('users').doc(currentUser.uid);
+    const loadCollection = async (collectionName) => {
+        const snapshot = await userDocRef.collection(collectionName).get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
+    try {
+        const [recurringIncomes, recurringExpenses] = await Promise.all([
+            loadCollection('recurringIncomes'),
+            loadCollection('recurringExpenses')
+        ]);
+        return { recurringIncomes, recurringExpenses };
+    } catch (error) {
+        console.error("Erro ao carregar dados recorrentes:", error);
+        showToast("Falha ao carregar dados recorrentes.", "error");
+        return { recurringIncomes: [], recurringExpenses: [] };
+    }
+}
+
 export async function loadInitialData(db, currentUser) {
     const userDocRef = db.collection('users').doc(currentUser.uid);
 
@@ -113,9 +132,27 @@ export async function saveExpense(db, currentUser, expenseData, id, installments
                     newExpense.description = `${expenseData.description} (${i + 1}/${installments})`;
                     newExpense.installmentGroupId = groupId;
                 }
-                const installmentDate = new Date(originalDate);
-                installmentDate.setMonth(originalDate.getMonth() + i);
+                
+                // --- LÓGICA DE DATA CORRIGIDA ---
+                const originalYear = originalDate.getFullYear();
+                const originalMonth = originalDate.getMonth(); // Mês base 0 (Janeiro = 0)
+                const originalDay = originalDate.getDate();
+
+                // Calcula o mês e o ano da parcela atual
+                const targetMonthIndex = originalMonth + i;
+                const newYear = originalYear + Math.floor(targetMonthIndex / 12);
+                const newMonth = targetMonthIndex % 12;
+
+                // Descobre o último dia do mês de destino
+                const daysInTargetMonth = new Date(newYear, newMonth + 1, 0).getDate();
+
+                // Garante que o dia não ultrapasse o limite do mês (ex: dia 31 em Fevereiro vira dia 28)
+                const newDay = Math.min(originalDay, daysInTargetMonth);
+
+                // Cria a data final da parcela
+                const installmentDate = new Date(newYear, newMonth, newDay);
                 newExpense.date = installmentDate.toISOString().split('T')[0];
+                // --- FIM DA LÓGICA CORRIGIDA ---
                 
                 const newDocRef = userDocRef.collection('expenses').doc();
                 batch.set(newDocRef, newExpense);
@@ -189,26 +226,32 @@ export async function updateUserPassword(auth, newPassword) {
 
 // --- FUNÇÕES DE EXCLUSÃO (DELETE) ---
 
-export async function handleDelete(db, currentUser, type, item) {
-    const collectionName = type === 'timeEntry' ? 'timeEntries' : `${type}s`;
-    
-    try {
-        if (type === 'expense' && item.installmentGroupId) {
-            const confirmed = await showConfirmation('Apagar Parcelas', 'Este item é uma parcela. Deseja apagar TODAS as parcelas futuras (incluindo esta)?');
-            if (!confirmed) return false;
-            
-            const batch = db.batch();
-            const futureInstallmentsQuery = db.collection('users').doc(currentUser.uid).collection(collectionName)
-                .where('installmentGroupId', '==', item.installmentGroupId)
-                .where('date', '>=', item.date);
-            const snapshot = await futureInstallmentsQuery.get();
-            snapshot.docs.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-            showToast('Parcelas futuras foram apagadas.', 'success');
-        } else {
-            const confirmed = await showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? A ação não pode ser desfeita.');
-            if (!confirmed) return false;
+export async function handleDelete(db, currentUser, type, item, deleteOption = 'all') {
+    let collectionName = type.endsWith('y') ? type.slice(0, -1) + 'ies' : `${type}s`;
+    if (type === 'timeEntry') collectionName = 'timeEntries';
+    if (type === 'recurringIncome') collectionName = 'recurringIncomes';
+    if (type === 'recurringExpense') collectionName = 'recurringExpenses';
 
+    try {
+        // Lógica para despesas parceladas
+        if (type === 'expense' && item.installmentGroupId) {
+            if (deleteOption === 'one') {
+                // APAGAR SÓ ESTA PARCELA
+                await db.collection('users').doc(currentUser.uid).collection('expenses').doc(item.id).delete();
+                showToast('Parcela removida com sucesso!', 'success');
+            } else { // 'all' é o padrão
+                // APAGAR TODAS AS PARCELAS FUTURAS
+                const batch = db.batch();
+                const futureInstallmentsQuery = db.collection('users').doc(currentUser.uid).collection('expenses')
+                    .where('installmentGroupId', '==', item.installmentGroupId)
+                    .where('date', '>=', item.date);
+                const snapshot = await futureInstallmentsQuery.get();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                showToast('Parcelas futuras foram apagadas.', 'success');
+            }
+        } else {
+            // Lógica para todos os outros itens
             await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(item.id).delete();
             showToast('Item excluído com sucesso!', 'success');
         }

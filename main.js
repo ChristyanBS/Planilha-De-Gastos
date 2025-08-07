@@ -1,4 +1,5 @@
-// Arquivo: main.js (VERSÃO FINAL COMPLETA)
+// Arquivo: main.js (VERSÃO FINAL, LIMPA E CORRIGIDA)
+
 import * as ui from './ui.js';
 import * as db from './firestore.js';
 import * as utils from './utils.js';
@@ -15,13 +16,13 @@ const firebaseConfig = {
     appId: "1:515745025757:web:3ca2c314da8cbee8549534"
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const firestoreDB = firebase.firestore();
 
 const state = {
     currentUser: null,
     incomes: [], expenses: [], goals: [], investments: [], timeEntries: [],
+    recurringIncomes: [], recurringExpenses: [],
     settings: {
         headerSubtitle: '', payPeriodStartDay: 1, overtimeStartDay: 24, overtimeEndDay: 23,
         expenseCategories: { housing: 'Moradia', food: 'Alimentação', transport: 'Transporte', health: 'Saúde', education: 'Educação', entertainment: 'Lazer', other: 'Outros' },
@@ -34,145 +35,147 @@ const state = {
 async function updateDashboard() {
     if (!state.currentUser) return;
 
-    const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
-    state.goals = initialData.goals;
-    state.investments = initialData.investments;
-
+    // Esta função agora busca APENAS os dados do período selecionado
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
-    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
-
     const periodData = await db.loadPeriodData(firestoreDB, state.currentUser, periodRange.startDate, periodRange.endDate);
-    state.incomes = periodData.incomes;
-    state.expenses = periodData.expenses;
+
+    // Gera as transações fixas para o mês atual
+    const generateRecurring = (template) => {
+        const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
+        if (date >= periodRange.startDate && date <= periodRange.endDate) {
+            return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
+        }
+        return null;
+    };
+    const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
+    const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
+
+    // Atualiza o state com os dados do período
+    state.incomes = [...periodData.incomes, ...generatedIncomes];
+    state.expenses = [...periodData.expenses, ...generatedExpenses];
     state.timeEntries = periodData.timeEntries;
 
-    const totals = core.calculateTotals(state, periodRange, overtimeRange);
-    
-    ui.updatePeriodDisplay(periodRange, overtimeRange);
-    ui.updateDashboardCards(totals);
-    
-    const tableCallbacks = { onEdit: handleEditItem, onDelete: handleDeleteItem };
-    ui.updateIncomeTable(state.incomes, { ...tableCallbacks, onCalc: sendIncomeToCalculator });
-    ui.updateExpensesTable(state.expenses, state.settings.expenseCategories, { ...tableCallbacks, onStatusToggle: handleExpenseStatusToggle });
-    ui.updateGoalsTable(state.goals, totals.monthSavings, totals.totalInvested, tableCallbacks);
-    ui.updateInvestmentsTable(state.investments, tableCallbacks);
-    ui.updateHoursTable(state.timeEntries.filter(t => {
-        const itemDate = new Date(t.date + 'T00:00:00');
-        return itemDate >= overtimeRange.startDate && itemDate <= overtimeRange.endDate;
-    }), tableCallbacks);
-
-    if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
-        handleGenerateReport();
-    }
+    // Chama a função de renderização rápida que não acessa o banco de dados
+    rerenderUI();
 }
 
-/**
- * Redesenha a interface com os dados já existentes no 'state', sem buscar no banco de dados.
- * É uma versão "leve" do updateDashboard para tarefas puramente visuais.
- */
 function rerenderUI() {
     if (!state.currentUser) return;
-
-    // Pula a busca no banco de dados e vai direto para os cálculos e renderização
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
     const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
-
     const totals = core.calculateTotals(state, periodRange, overtimeRange);
-    
     ui.updatePeriodDisplay(periodRange, overtimeRange);
     ui.updateDashboardCards(totals);
-    
     const tableCallbacks = { onEdit: handleEditItem, onDelete: handleDeleteItem };
     ui.updateIncomeTable(state.incomes, { ...tableCallbacks, onCalc: sendIncomeToCalculator });
     ui.updateExpensesTable(state.expenses, state.settings.expenseCategories, { ...tableCallbacks, onStatusToggle: handleExpenseStatusToggle });
     ui.updateGoalsTable(state.goals, totals.monthSavings, totals.totalInvested, tableCallbacks);
     ui.updateInvestmentsTable(state.investments, tableCallbacks);
-    ui.updateHoursTable(state.timeEntries.filter(t => {
-        const itemDate = new Date(t.date + 'T00:00:00');
-        return itemDate >= overtimeRange.startDate && itemDate <= overtimeRange.endDate;
-    }), tableCallbacks);
-
+    ui.updateHoursTable(state.timeEntries.filter(t => new Date(t.date + 'T00:00:00') >= overtimeRange.startDate && new Date(t.date + 'T00:00:00') <= overtimeRange.endDate), tableCallbacks);
+    ui.updateRecurringItemsTable(state.recurringIncomes, state.recurringExpenses, state.settings.expenseCategories, tableCallbacks);
     if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
-        ui.generateReport(state, totals);
+        handleGenerateReport();
     }
 }
 
-// --- HANDLERS DE EVENTOS (Ações do Usuário) ---
+// --- HANDLERS DE EVENTOS ---
+function handleEditItem(type, id) {
+    let collectionName;
+    switch (type) {
+        case 'timeEntry': collectionName = 'timeEntries'; break;
+        case 'recurringIncome': collectionName = 'recurringIncomes'; break;
+        case 'recurringExpense': collectionName = 'recurringExpenses'; break;
+        default: collectionName = `${type}s`;
+    }
+    const item = state[collectionName]?.find(i => i.id === id);
+    ui.showEditModal(type, item, state);
+}
 
-async function handleAddCustomItem(type) {
-    const list = type === 'provento' ? state.settings.customProventos : state.settings.customDiscounts;
-    const nameInput = document.getElementById(`new-${type}-name`);
-    const valueInput = document.getElementById(`new-${type}-value`);
-    const name = nameInput.value.trim();
-    const value = utils.parseBrazilianNumber(valueInput.value);
+async function handleDeleteItem(type, id) {
+    let collectionName;
+    switch (type) {
+        case 'timeEntry': collectionName = 'timeEntries'; break;
+        case 'recurringIncome': collectionName = 'recurringIncomes'; break;
+        case 'recurringExpense': collectionName = 'recurringExpenses'; break;
+        default: collectionName = `${type}s`;
+    }
+    const collection = state[collectionName];
+    const item = collection?.find(i => i.id === id);
 
-    if (name && !isNaN(value) && value > 0) {
-        list.push({ name, value });
-        const success = await db.saveUserSettings(firestoreDB, state.currentUser, { 
-            customProventos: state.settings.customProventos,
-            customDiscounts: state.settings.customDiscounts 
+    if (!item) return console.error("Item não encontrado no estado local:", type, id);
+
+    // LÓGICA INTELIGENTE PARA PARCELAS
+    if (type === 'expense' && item.installmentGroupId) {
+        const choice = await ui.showAdvancedConfirmation({
+            title: 'Excluir Despesa Parcelada',
+            message: 'Esta despesa é uma parcela. Como você deseja excluí-la?',
+            confirmText: 'Apagar Todas as Futuras',
+            confirmClass: 'bg-red-600 hover:bg-red-700',
+            secondaryText: 'Apagar Só Esta',
+            secondaryClass: 'bg-yellow-500 hover:bg-yellow-600'
         });
-        if (success) {
-            nameInput.value = '';
-            valueInput.value = '';
-            handleTabChange('calculator'); // Re-renderiza a calculadora para mostrar a lista atualizada
+
+        if (choice === 'cancel') return; // Usuário cancelou
+
+        const deleteOption = choice === 'confirm' ? 'all' : 'one';
+        const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item, deleteOption);
+        if (wasDeleted) await updateDashboard();
+        
+    } else { // Lógica para todos os outros itens
+        const confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? A ação não pode ser desfeita.');
+        if (confirmed) {
+            const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item);
+            if (wasDeleted) await updateDashboard();
+        }
+    }
+}
+async function handleSaveItem(type) {
+    const modalId = `${type}-modal`;
+    const formContainer = document.getElementById(modalId)?.querySelector('div > div');
+    if (!formContainer) return;
+    const id = document.getElementById(`save-${type}`).dataset.id;
+    const isRecurring = document.getElementById(`${type}-isRecurring`)?.checked || false;
+    const itemData = {};
+    const inputs = formContainer.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (!input.id || input.id.startsWith('save-') || input.id.startsWith('cancel-') || input.id.startsWith('close-')) return;
+        const key = input.id.replace(`${type}-`, '').replace('-checkbox', '');
+        if (input.type === 'checkbox') itemData[key] = input.checked;
+        else if (input.type === 'number' || input.id.includes('amount') || input.id.includes('target') || input.id.includes('yield') || input.id.includes('current')) {
+            itemData[key] = utils.parseBrazilianNumber(input.value);
+        } else {
+            itemData[key] = input.value.trim();
+        }
+    });
+    if (isRecurring) {
+        itemData.dayOfMonth = new Date(itemData.date + 'T00:00:00').getDate();
+        delete itemData.date;
+        delete itemData.paid;
+        delete itemData.isRecurring;
+        const recurringType = type === 'income' ? 'recurringIncome' : 'recurringExpense';
+        const saved = await db.saveItem(firestoreDB, state.currentUser, recurringType, itemData, id);
+        if (saved) {
+            ui.closeModal(modalId);
+            await updateDashboard();
         }
     } else {
-        ui.showToast('Por favor, preencha o nome e um valor válido.', 'error');
+        let saved = false;
+        if (type === 'expense') {
+            const installments = parseInt(document.getElementById('expense-installments').value) || 1;
+            saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
+        } else {
+            saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
+        }
+        if (saved) {
+            ui.closeModal(modalId);
+            await updateDashboard();
+        }
     }
 }
 
-async function handleDeleteCustomItem(type, index) {
-    const list = type === 'provento' ? state.settings.customProventos : state.settings.customDiscounts;
-    list.splice(index, 1);
-    const success = await db.saveUserSettings(firestoreDB, state.currentUser, { 
-        customProventos: state.settings.customProventos,
-        customDiscounts: state.settings.customDiscounts 
-    });
-    if (success) {
-        handleTabChange('calculator'); // Re-renderiza a calculadora
-    }
-}
-
-// COLE ESTA FUNÇÃO NA SEÇÃO DE HANDLERS DO SEU main.js
-
-function handleTabChange(tabId) {
-    // Lógica para a aba de Relatórios
-    if (tabId === 'reports') {
-        // Reutiliza a função handler que já criamos para gerar o gráfico
-        handleGenerateReport();
-    } 
-    // Lógica para a aba de Calculadora
-    else if (tabId === 'calculator') {
-        // Calcula os totais mais recentes para garantir que as horas extras estejam atualizadas
-        const totals = core.calculateTotals(state, 
-            utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay),
-            utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay)
-        );
-        
-        // Pede para a UI atualizar a tela da calculadora, passando os totais, as configurações
-        // e as funções de callback para os botões de exclusão.
-        ui.updateCalculatorDisplay(totals, state.settings, {
-            onDeleteProvento: (index) => handleDeleteCustomItem('provento', index),
-            onDeleteDiscount: (index) => handleDeleteCustomItem('discount', index)
-        });
-    }
-}
-
-function handleGenerateReport() {
-    // É crucial recalcular os totais para garantir que o gráfico use os dados mais recentes
-    const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
-    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
-    const totals = core.calculateTotals(state, periodRange, overtimeRange);
-    
-    // Pede para a UI gerar o gráfico com os dados e totais atualizados
-    ui.generateReport(state, totals);
-}
-
-// Em main.js (CORRIGIDO)
 async function handleSaveTimeEntry() {
     const addBtn = document.getElementById('add-hour-entry-btn');
-    const id = addBtn.dataset.editingId; // Pega o ID para saber se é uma edição
+    const id = addBtn.dataset.editingId;
     const itemData = {
         date: document.getElementById('hour-date').value,
         entry: document.getElementById('hour-entry').value,
@@ -181,90 +184,30 @@ async function handleSaveTimeEntry() {
         exit: document.getElementById('hour-exit').value,
         isHoliday: document.getElementById('hour-is-holiday').checked
     };
-
     if (!itemData.date || !itemData.entry || !itemData.exit) {
         return ui.showToast('Data, Entrada e Saída são obrigatórios.', 'error');
     }
-
-    // Passa o tipo correto 'timeEntry'
     const saved = await db.saveItem(firestoreDB, state.currentUser, 'timeEntry', itemData, id);
-
     if (saved) {
-        // Limpa os campos manualmente, um por um, sem usar .reset()
         document.getElementById('hour-date').value = '';
         document.getElementById('hour-entry').value = '';
         document.getElementById('hour-break-start').value = '';
         document.getElementById('hour-break-end').value = '';
         document.getElementById('hour-exit').value = '';
         document.getElementById('hour-is-holiday').checked = false;
-
-        // Reseta o botão para o estado "Adicionar"
         addBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>Adicionar';
         delete addBtn.dataset.editingId;
         document.getElementById('cancel-hour-edit-btn').classList.add('hidden');
-        
-        await updateDashboard();
-    }
-}
-
-function handleEditItem(type, id) {
-    const collectionName = type === 'timeEntry' ? 'timeEntries' : `${type}s`;
-    const item = state[collectionName].find(i => i.id === id);
-    ui.showEditModal(type, item, state);
-}
-
-async function handleDeleteItem(type, id) {
-    const collectionName = type === 'timeEntry' ? 'timeEntries' : `${type}s`;
-    const item = state[collectionName].find(i => i.id === id);
-    if (!item) return;
-
-    if (type === 'goal' && (item.name === "Economia Mensal" || item.name === "Reserva de Emergência")) {
-        return ui.showToast('Metas padrão não podem ser excluídas.', 'info');
-    }
-
-    const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item);
-    if (wasDeleted) await updateDashboard();
-}
-
-async function handleSaveItem(type) {
-    const modalId = `${type}-modal`;
-    const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) return;
-    
-    const id = document.getElementById(`save-${type}`).dataset.id;
-    const itemData = {};
-
-    // Coleta dados de todos os inputs relevantes dentro do modal
-    const inputs = formContainer.querySelectorAll(`[id^="${type}-"]`);
-    inputs.forEach(input => {
-        const key = input.id.replace(`${type}-`, '');
-        if (input.type === 'checkbox') itemData[key] = input.checked;
-        else if (input.type === 'number' || input.inputMode === 'decimal' || input.id.includes('amount') || input.id.includes('target')) {
-            itemData[key] = utils.parseBrazilianNumber(input.value);
-        } else {
-            itemData[key] = input.value;
-        }
-    });
-
-    let saved = false;
-    if (type === 'expense') {
-        const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
-    } else {
-        saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
-    }
-
-    if (saved) {
-        ui.closeModal(modalId);
         await updateDashboard();
     }
 }
 
 async function handleExpenseStatusToggle(id) {
     const expense = state.expenses.find(e => e.id === id);
-    if (!expense) return;
-    const success = await db.toggleExpenseStatus(firestoreDB, state.currentUser, expense);
-    if (success) await updateDashboard();
+    if (expense) {
+        const success = await db.toggleExpenseStatus(firestoreDB, state.currentUser, expense);
+        if (success) await updateDashboard();
+    }
 }
 
 function sendIncomeToCalculator(id) {
@@ -272,7 +215,6 @@ function sendIncomeToCalculator(id) {
     if (income) {
         document.getElementById('calc-base-salary').value = String(income.amount).replace('.', ',');
         document.querySelector('.tab-btn[data-tab="calculator"]').click();
-        handleCalculateSalary();
     }
 }
 
@@ -286,17 +228,17 @@ function handleCalculateSalary() {
 }
 
 async function handleResetMonth() {
-    const confirmed = await ui.showConfirmation('Reiniciar Mês', 'Isso vai apagar os dados de renda, despesas e horas DO PERÍODO ATUAL. Tem certeza?', 'bg-orange-500 hover:bg-orange-600');
+    const confirmed = await ui.showConfirmation('Reiniciar Mês', 'Isso vai apagar as transações não-fixas deste período. Tem certeza?', 'bg-orange-500 hover:bg-orange-600');
     if (!confirmed) return;
-
-    const itemsToDelete = [...state.incomes, ...state.expenses, ...state.timeEntries];
+    const itemsToDelete = state.incomes.concat(state.expenses, state.timeEntries).filter(item => !item.isRecurring);
+    if (itemsToDelete.length === 0) return ui.showToast('Nenhum item para reiniciar neste mês.', 'info');
     const batch = firestoreDB.batch();
     itemsToDelete.forEach(item => {
         let collectionName = '';
         if (state.incomes.includes(item)) collectionName = 'incomes';
         else if (state.expenses.includes(item)) collectionName = 'expenses';
         else if (state.timeEntries.includes(item)) collectionName = 'timeEntries';
-        if (collectionName) {
+        if (collectionName && item.id) {
             batch.delete(firestoreDB.collection('users').doc(state.currentUser.uid).collection(collectionName).doc(item.id));
         }
     });
@@ -310,15 +252,9 @@ async function handleClearAll() {
     if (!confirmed1) return;
     const confirmed2 = await ui.showConfirmation('ÚLTIMO AVISO', 'Tem certeza absoluta que deseja apagar tudo?');
     if (!confirmed2) return;
-
     const success = await db.clearAllUserData(firestoreDB, state.currentUser);
     if (success) {
-        // Recarrega os dados iniciais (metas padrão, etc.) e atualiza a tela
-        const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
-        state.goals = initialData.goals;
-        state.investments = initialData.investments;
-        state.settings = initialData.settings;
-        await updateDashboard();
+        window.location.reload();
     }
 }
 
@@ -349,78 +285,145 @@ async function handlePasswordChange() {
     if(result.success) document.getElementById('new-password').value = '';
 }
 
+async function handleAddCustomItem(type) {
+    const list = type === 'provento' ? state.settings.customProventos : state.settings.customDiscounts;
+    const nameInput = document.getElementById(`new-${type}-name`);
+    const valueInput = document.getElementById(`new-${type}-value`);
+    const name = nameInput.value.trim();
+    const value = utils.parseBrazilianNumber(valueInput.value);
+    if (name && !isNaN(value) && value > 0) {
+        list.push({ name, value });
+        const success = await db.saveUserSettings(firestoreDB, state.currentUser, { 
+            customProventos: state.settings.customProventos,
+            customDiscounts: state.settings.customDiscounts 
+        });
+        if (success) {
+            nameInput.value = ''; valueInput.value = '';
+            handleTabChange('calculator');
+        }
+    } else {
+        ui.showToast('Por favor, preencha o nome e um valor válido.', 'error');
+    }
+}
+
+async function handleDeleteCustomItem(type, index) {
+    const list = type === 'provento' ? state.settings.customProventos : state.settings.customDiscounts;
+    list.splice(index, 1);
+    const success = await db.saveUserSettings(firestoreDB, state.currentUser, { 
+        customProventos: state.settings.customProventos,
+        customDiscounts: state.settings.customDiscounts 
+    });
+    if (success) {
+        handleTabChange('calculator');
+    }
+}
+
+function handleTabChange(tabId) {
+    if (tabId === 'reports') {
+        handleGenerateReport();
+    } else if (tabId === 'calculator') {
+        const totals = core.calculateTotals(state, 
+            utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay),
+            utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay)
+        );
+        ui.updateCalculatorDisplay(totals, state.settings, {
+            onDeleteProvento: (index) => handleDeleteCustomItem('provento', index),
+            onDeleteDiscount: (index) => handleDeleteCustomItem('discount', index)
+        });
+    }
+}
+
+function handleGenerateReport() {
+    const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+    const totals = core.calculateTotals(state, periodRange, overtimeRange);
+    ui.generateReport(state, totals);
+}
 
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
     document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updateDashboard(); });
-    document.getElementById('calculate-salary-btn').addEventListener('click', handleCalculateSalary);
-    document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
-    document.getElementById('theme-toggle-btn').addEventListener('click', () => { ui.toggleTheme(); updateDashboard(); });
-    
-    
-    // Botões de ação do header e da conta
+    document.getElementById('privacy-toggle-btn').addEventListener('click', () => { utils.togglePrivacyMode(); ui.updatePrivacyButton(utils.initPrivacyMode()); rerenderUI(); });
+    document.getElementById('theme-toggle-btn').addEventListener('click', () => { ui.toggleTheme(); rerenderUI(); });
     document.getElementById('reset-btn').addEventListener('click', handleResetMonth);
     document.getElementById('clear-all-btn').addEventListener('click', handleClearAll);
     document.getElementById('save-settings-btn').addEventListener('click', handleSaveSettings);
     document.getElementById('save-password-btn').addEventListener('click', handlePasswordChange);
     document.getElementById('add-provento-btn').addEventListener('click', () => handleAddCustomItem('provento'));
     document.getElementById('add-discount-btn').addEventListener('click', () => handleAddCustomItem('discount'));
-
-    // Botões "Adicionar"
     document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
     document.getElementById('add-expense-btn').addEventListener('click', () => ui.showEditModal('expense', null, state));
     document.getElementById('add-goal-btn').addEventListener('click', () => ui.showEditModal('goal', null, state));
     document.getElementById('add-investment-btn').addEventListener('click', () => ui.showEditModal('investment', null, state));
     document.getElementById('add-hour-entry-btn').addEventListener('click', handleSaveTimeEntry);
+    document.getElementById('calculate-salary-btn').addEventListener('click', handleCalculateSalary);
+    document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
 
-    // Botões "Salvar" e "Cancelar" dos modais
     ['income', 'expense', 'goal', 'investment'].forEach(type => {
         document.getElementById(`save-${type}`).addEventListener('click', () => handleSaveItem(type));
         document.getElementById(`close-${type}-modal`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
         document.getElementById(`cancel-${type}`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
     });
 
-    document.getElementById('privacy-toggle-btn').addEventListener('click', () => {
-        const isPrivate = utils.togglePrivacyMode();
-        ui.updatePrivacyButton(isPrivate);
-        rerenderUI(); // Re-renderiza tudo com os valores ocultos/visíveis
-    });
-
-    // Lógica das Abas
-    // CÓDIGO CORRIGIDO PARA O QUAL VOCÊ DEVE MUDAR
-document.querySelectorAll('.tab-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-        this.classList.add('active-tab');
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-        document.getElementById(`${this.dataset.tab}-content`).classList.remove('hidden');
-
-        const nonMonthTabs = ['reports', 'calculator', 'account', 'investments', 'goals'];
-        document.querySelectorAll('#month-select, #year-select').forEach(sel => {
-            sel.classList.toggle('hidden', nonMonthTabs.includes(this.dataset.tab))
+    document.querySelectorAll('.tab-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            this.classList.add('active-tab');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${this.dataset.tab}-content`)?.classList.remove('hidden');
+            const nonMonthTabs = ['reports', 'calculator', 'account', 'investments', 'goals', 'recurring'];
+            document.querySelectorAll('#month-select, #year-select').forEach(sel => sel.classList.toggle('hidden', nonMonthTabs.includes(this.dataset.tab)));
+            handleTabChange(this.dataset.tab);
         });
-
-        // A única linha que você precisa para chamar a lógica correta
-        handleTabChange(this.dataset.tab);
     });
-});
 }
 
 // --- PONTO DE ENTRADA DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
+    // SUBSTITUA O BLOCO auth.onAuthStateChanged INTEIRO PELA VERSÃO ABAIXO EM main.js
+
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             state.currentUser = user;
             document.getElementById('main-container').style.display = 'block';
             document.getElementById('user-email-display').textContent = user.email;
 
-            const initialData = await db.loadInitialData(firestoreDB, user);
+            // --- LÓGICA DE CARREGAMENTO OTIMIZADA ---
+            const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+            const [initialData, recurringData, periodData] = await Promise.all([
+                db.loadInitialData(firestoreDB, user),
+                db.loadRecurringData(firestoreDB, user),
+                db.loadPeriodData(firestoreDB, user, periodRange.startDate, periodRange.endDate)
+            ]);
+
             state.goals = initialData.goals;
             state.investments = initialData.investments;
             state.settings = { ...state.settings, ...initialData.settings };
+            state.recurringIncomes = recurringData.recurringIncomes;
+            state.recurringExpenses = recurringData.recurringExpenses;
 
+            const generateRecurring = (template) => {
+                const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
+                if (date >= periodRange.startDate && date <= periodRange.endDate) {
+                    return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
+                }
+                return null;
+            };
+            const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
+            const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
+            state.incomes = [...periodData.incomes, ...generatedIncomes];
+            state.expenses = [...periodData.expenses, ...generatedExpenses];
+            state.timeEntries = periodData.timeEntries;
+
+            // --- PREPARAÇÃO DA UI BÁSICA ---
+            
+            // LINHA CORRIGIDA E ADICIONADA DE VOLTA
+            document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || `${user.displayName || user.email}`;
+            const userName = user.displayName || 'Usuário';
+document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || userName;
+document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua planilha, ${userName}!`; // ADICIONADO DE VOLTA
             ui.populateYearDropdown();
             document.getElementById('year-select').value = state.currentYear;
             document.getElementById('month-select').value = state.currentMonth;
@@ -428,12 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.documentElement.classList.add('dark');
             }
             ui.updateThemeButton(localStorage.getItem('theme') || 'light');
-            
-             const isPrivate = utils.initPrivacyMode();
+            const isPrivate = utils.initPrivacyMode();
             ui.updatePrivacyButton(isPrivate);
             
             setupEventListeners();
-            await updateDashboard();
+            
+            rerenderUI();
             
             document.querySelector('.tab-btn[data-tab="income"]').click();
         } else {

@@ -1,17 +1,13 @@
 // Arquivo: utils.js (VERSÃO FINAL E CORRIGIDA)
 
-// Controla o estado do modo de privacidade
 let isPrivacyMode = false;
 
-// Arquivo: utils.js
-// Salva a preferência no localStorage e retorna o novo estado
 export function togglePrivacyMode() {
     isPrivacyMode = !isPrivacyMode;
     localStorage.setItem('privacyMode', isPrivacyMode);
     return isPrivacyMode;
 }
 
-// Carrega a preferência do localStorage quando a página abre
 export function initPrivacyMode() {
     isPrivacyMode = localStorage.getItem('privacyMode') === 'true';
     return isPrivacyMode;
@@ -19,7 +15,7 @@ export function initPrivacyMode() {
 
 export function formatCurrency(value) {
     if (isPrivacyMode) {
-        return 'R$ ●●●,●●'; // O que será exibido no modo privado
+        return 'R$ ●●●,●●';
     }
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 }

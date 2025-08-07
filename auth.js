@@ -54,13 +54,26 @@ if(loginBtn) {
 
 if(signupBtn) {
     signupBtn.addEventListener('click', () => {
+        const name = document.getElementById('signup-name').value.trim(); // Pega o nome
         const email = document.getElementById('signup-email').value;
         const password = document.getElementById('signup-password').value;
         const errorP = document.getElementById('signup-error');
+
+        // Validação simples para o nome
+        if (!name) {
+            errorP.textContent = 'Por favor, insira seu nome.';
+            return;
+        }
         
         auth.createUserWithEmailAndPassword(email, password)
              .then(userCredential => {
-                 // O onAuthStateChanged vai cuidar do redirecionamento
+                 // Após criar o usuário, atualiza o perfil com o nome
+                 return userCredential.user.updateProfile({
+                     displayName: name
+                 });
+            })
+            .then(() => {
+                // O onAuthStateChanged vai cuidar do redirecionamento
             })
             .catch(error => {
                 if (error.code === 'auth/weak-password') {
