@@ -35,27 +35,48 @@ const state = {
 async function updateDashboard() {
     if (!state.currentUser) return;
 
-    // Esta função agora busca APENAS os dados do período selecionado
-    const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
-    const periodData = await db.loadPeriodData(firestoreDB, state.currentUser, periodRange.startDate, periodRange.endDate);
+    // 1. RECARREGA TODOS OS DADOS NÃO-PERIÓDICOS (METAS, INVESTIMENTOS E ITENS FIXOS)
+    //    Isso garante que qualquer alteração (como uma exclusão) seja refletida.
+    const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
+    const recurringData = await db.loadRecurringData(firestoreDB, state.currentUser);
+    state.goals = initialData.goals;
+    state.investments = initialData.investments;
+    state.settings = { ...state.settings, ...initialData.settings };
+    state.recurringIncomes = recurringData.recurringIncomes;
+    state.recurringExpenses = recurringData.recurringExpenses;
 
-    // Gera as transações fixas para o mês atual
+    // 2. BUSCA OS DADOS QUE MUDAM A CADA MÊS
+    const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+    const periodData = await db.loadPeriodData(firestoreDB, state.currentUser, periodRange.startDate, periodRange.endDate);
+    
+    // 3. GERA AS TRANSAÇÕES FIXAS COM A LÓGICA ATUALIZADA (QUE NÃO MOSTRA NO PASSADO)
     const generateRecurring = (template) => {
         const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
+        
+        if (template.createdAt) {
+            const creationDate = new Date(template.createdAt);
+            const firstDayOfVisibleMonth = new Date(state.currentYear, state.currentMonth - 1, 1);
+            if (firstDayOfVisibleMonth < new Date(creationDate.getFullYear(), creationDate.getMonth(), 1)) {
+                return null;
+            }
+        }
+        
         if (date >= periodRange.startDate && date <= periodRange.endDate) {
             return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
         }
         return null;
     };
+    
     const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
     const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
 
-    // Atualiza o state com os dados do período
+    // 4. COMBINA OS DADOS E ATUALIZA O ESTADO
     state.incomes = [...periodData.incomes, ...generatedIncomes];
     state.expenses = [...periodData.expenses, ...generatedExpenses];
     state.timeEntries = periodData.timeEntries;
 
-    // Chama a função de renderização rápida que não acessa o banco de dados
+    // 5. CHAMA A FUNÇÃO DE RENDERIZAÇÃO RÁPIDA
     rerenderUI();
 }
 
@@ -102,40 +123,58 @@ async function handleDeleteItem(type, id) {
     const collection = state[collectionName];
     const item = collection?.find(i => i.id === id);
 
-    if (!item) return console.error("Item não encontrado no estado local:", type, id);
+    if (!item) {
+        return console.error("ERRO: Item não encontrado no estado local:", type, id);
+    }
 
-    // LÓGICA INTELIGENTE PARA PARCELAS
+    // Lógica de confirmação para diferentes tipos de item
+    let confirmed = false;
+    let deleteOption = 'all'; // Padrão para itens normais e recorrentes
+
     if (type === 'expense' && item.installmentGroupId) {
         const choice = await ui.showAdvancedConfirmation({
             title: 'Excluir Despesa Parcelada',
             message: 'Esta despesa é uma parcela. Como você deseja excluí-la?',
             confirmText: 'Apagar Todas as Futuras',
-            confirmClass: 'bg-red-600 hover:bg-red-700',
             secondaryText: 'Apagar Só Esta',
-            secondaryClass: 'bg-yellow-500 hover:bg-yellow-600'
         });
+        if (choice === 'cancel') return;
+        confirmed = true;
+        deleteOption = choice === 'confirm' ? 'all' : 'one';
+    } else {
+        // Confirmação padrão para todos os outros itens
+        confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item?');
+    }
 
-        if (choice === 'cancel') return; // Usuário cancelou
+    if (!confirmed) return; // Se o usuário cancelar, a função para aqui.
 
-        const deleteOption = choice === 'confirm' ? 'all' : 'one';
-        const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item, deleteOption);
-        if (wasDeleted) await updateDashboard();
-        
-    } else { // Lógica para todos os outros itens
-        const confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? A ação não pode ser desfeita.');
-        if (confirmed) {
-            const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item);
-            if (wasDeleted) await updateDashboard();
+    // 1. Deleta o item do banco de dados
+    const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item, deleteOption);
+
+    // 2. Se a exclusão no banco de dados funcionou...
+    if (wasDeleted) {
+        // ...ATUALIZA A LISTA LOCAL (na memória) MANUALMENTE...
+        const index = collection.findIndex(i => i.id === id);
+        if (index > -1) {
+            collection.splice(index, 1);
         }
+        
+        // ...E CHAMA A FUNÇÃO DE REDESENHO RÁPIDO!
+        // Isso usa a lista que acabamos de corrigir e não precisa ir ao banco de novo.
+        rerenderUI();
     }
 }
+
 async function handleSaveItem(type) {
     const modalId = `${type}-modal`;
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
     if (!formContainer) return;
+
     const id = document.getElementById(`save-${type}`).dataset.id;
     const isRecurring = document.getElementById(`${type}-isRecurring`)?.checked || false;
     const itemData = {};
+    
+    // (o código que coleta os dados dos inputs continua o mesmo...)
     const inputs = formContainer.querySelectorAll('input, select');
     inputs.forEach(input => {
         if (!input.id || input.id.startsWith('save-') || input.id.startsWith('cancel-') || input.id.startsWith('close-')) return;
@@ -147,11 +186,17 @@ async function handleSaveItem(type) {
             itemData[key] = input.value.trim();
         }
     });
+
     if (isRecurring) {
+        // Se for um item recorrente, adicionamos a data de hoje como data de criação
+        if (!id) { // Adiciona a data de criação apenas se for um item novo
+            itemData.createdAt = new Date().toISOString().split('T')[0];
+        }
         itemData.dayOfMonth = new Date(itemData.date + 'T00:00:00').getDate();
         delete itemData.date;
         delete itemData.paid;
         delete itemData.isRecurring;
+        
         const recurringType = type === 'income' ? 'recurringIncome' : 'recurringExpense';
         const saved = await db.saveItem(firestoreDB, state.currentUser, recurringType, itemData, id);
         if (saved) {
@@ -159,6 +204,7 @@ async function handleSaveItem(type) {
             await updateDashboard();
         }
     } else {
+        // Lógica para itens normais (não-recorrentes)
         let saved = false;
         if (type === 'expense') {
             const installments = parseInt(document.getElementById('expense-installments').value) || 1;
@@ -360,6 +406,8 @@ function setupEventListeners() {
     document.getElementById('add-hour-entry-btn').addEventListener('click', handleSaveTimeEntry);
     document.getElementById('calculate-salary-btn').addEventListener('click', handleCalculateSalary);
     document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
+    document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
+document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
 
     ['income', 'expense', 'goal', 'investment'].forEach(type => {
         document.getElementById(`save-${type}`).addEventListener('click', () => handleSaveItem(type));
@@ -375,6 +423,8 @@ function setupEventListeners() {
             document.getElementById(`${this.dataset.tab}-content`)?.classList.remove('hidden');
             const nonMonthTabs = ['reports', 'calculator', 'account', 'investments', 'goals', 'recurring'];
             document.querySelectorAll('#month-select, #year-select').forEach(sel => sel.classList.toggle('hidden', nonMonthTabs.includes(this.dataset.tab)));
+             // Fecha o menu mobile
+            ui.closeMobileMenu();
             handleTabChange(this.dataset.tab);
         });
     });

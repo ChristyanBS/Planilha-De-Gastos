@@ -65,6 +65,14 @@ html {
     overflow-y: scroll;
 }
 
+#mobile-menu {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+}
+#mobile-menu.open {
+    transform: translateX(0);
+}
+
 @media print {
     .no-print { display: none !important; }
     body { background-color: white !important; color: black !important; }

@@ -22,16 +22,36 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+   <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
+    <div id="mobile-menu" class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-50 p-6 md:hidden">
+        <h2 class="text-xl font-bold text-indigo-700 dark:text-indigo-400 mb-6">Menu</h2>
+        <nav class="flex flex-col space-y-2">
+            <button data-tab="income" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Renda</button>
+            <button data-tab="expenses" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Despesas</button>
+            <button data-tab="hours" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Horas</button>
+            <button data-tab="recurring" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Fixos</button>
+            <button data-tab="goals" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Metas</button>
+            <button data-tab="investments" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Investimentos</button>
+            <button data-tab="calculator" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Calculadora</button>
+            <button data-tab="reports" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Relatórios</button>
+            <button data-tab="account" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Minha Conta</button>
+        </nav>
+    </div>
     <div id="main-container" class="container mx-auto px-4 py-8">
         
         <header class="mb-8">
     <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0 mb-4">
-        <div>
-    <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
-    <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
-    <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
-</div>
-        <div class="no-print flex items-center space-x-2">
+        
+        <div class="flex items-center">
+            <button id="hamburger-btn" class="md:hidden mr-4 text-2xl p-2">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div>
+                <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
+                <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
+                <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
+            </div>
+        </div> <div class="no-print flex items-center space-x-2">
             <button id="install-pwa-btn" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-full flex items-center shadow-sm">
                 <i class="fas fa-download mr-2"></i>
                 <span class="hidden sm:inline">Instalar App</span>
@@ -90,7 +110,7 @@
             </div>
         </section>
 
-        <div class="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-print">
+        <div class="hidden md:flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-print">
             <div class="flex flex-nowrap -mb-px">
                 <button data-tab="income" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Renda</button>
                 <button data-tab="expenses" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Despesas</button>

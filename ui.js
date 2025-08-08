@@ -179,6 +179,16 @@ export function showEditModal(type, item, state) {
 
 // --- Funções de UI Geral ---
 
+export function toggleMobileMenu() {
+    document.getElementById('mobile-menu').classList.toggle('open');
+    document.getElementById('mobile-menu-overlay').classList.toggle('hidden');
+}
+
+export function closeMobileMenu() {
+    document.getElementById('mobile-menu').classList.remove('open');
+    document.getElementById('mobile-menu-overlay').classList.add('hidden');
+}
+
 export function updatePrivacyButton(isPrivate) {
     const btn = document.getElementById('privacy-toggle-btn');
     if (!btn) return;

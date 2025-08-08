@@ -1,9 +1,7 @@
-// Arquivo: sw.js (CORRIGIDO)
-
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v6'; // Versão incrementada
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v6';
 const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v6';
 
-// Lista de arquivos ATUALIZADA para a nova estrutura modular
+// Lista de arquivos essenciais para o funcionamento offline
 const urlsToCache = [
   './',
   'index.html',
@@ -21,7 +19,7 @@ const urlsToCache = [
   'images/icon-512x512.png'
 ];
 
-// Evento de Instalação: Salva os arquivos estáticos principais
+// Evento de Instalação: Salva os arquivos estáticos principais no cache
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NOME_ESTATICO)
@@ -32,7 +30,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// Evento de Ativação: Limpa caches antigos
+// Evento de Ativação: Limpa caches antigos para evitar conflitos
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -45,21 +43,28 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-// Evento de Fetch: Intercepta requisições
+// Evento de Fetch: Intercepta requisições com a estratégia Stale-While-Revalidate
 self.addEventListener('fetch', event => {
+  // Ignora requisições para o Firebase para não interferir na sincronização em tempo real
   if (event.request.url.includes('firebase') || event.request.url.includes('googleapis')) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request).then(networkResponse => {
-          return caches.open(CACHE_NOME_DINAMICO).then(cache => {
-            cache.put(event.request.url, networkResponse.clone());
-            return networkResponse;
-          });
+    caches.open(CACHE_NOME_DINAMICO).then(cache => {
+      // 1. Tenta pegar a resposta do cache
+      return cache.match(event.request).then(cachedResponse => {
+        // 2. Ao mesmo tempo, busca na rede para atualizar o cache (revalidate)
+        const fetchPromise = fetch(event.request).then(networkResponse => {
+          // Se a busca na rede for bem-sucedida, atualiza o cache com a nova versão
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
         });
-      })
+
+        // 3. Retorna a resposta do cache imediatamente se existir (stale),
+        // ou espera a resposta da rede se for a primeira vez (cache miss).
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });
