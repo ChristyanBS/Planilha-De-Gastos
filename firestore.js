@@ -33,12 +33,12 @@ export async function loadInitialData(db, currentUser) {
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (e) {
             console.error(`Falha ao carregar coleção ${collectionName}:`, e);
-            // Retorna um array vazio para não quebrar o Promise.all
             return []; 
         }
     };
 
     try {
+        // CORREÇÃO: Adicionada a coleção 'contributions' ao carregamento inicial
         const [goals, investments, contributions] = await Promise.all([
             loadCollection('goals'),
             loadCollection('investments'),
@@ -50,7 +50,8 @@ export async function loadInitialData(db, currentUser) {
         if (userSettingsDoc.exists) {
             settings = userSettingsDoc.data();
         }
-
+        
+        // CORREÇÃO: Retorna os dados de 'contributions'
         return { goals, investments, contributions, settings };
     } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
@@ -85,7 +86,7 @@ export async function loadPeriodData(db, currentUser, startDate, endDate) {
 }
 
 
-// --- FUNÇÕES DE ESCRITA (CREATE / UPDATE) ---
+// --- FUNÇÕES DE ESCRITA (CREATE / UPDATE / DELETE) ---
 
 export async function saveItem(db, currentUser, type, itemData, id) {
     const collectionName = type.endsWith('y') ? type.slice(0, -1) + 'ies' : `${type}s`;

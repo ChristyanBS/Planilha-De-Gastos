@@ -5,6 +5,7 @@ import * as db from './firestore.js';
 import * as utils from './utils.js';
 import * as core from './core.js';
 import * as calculator from './calculator.js';
+import { initPwaHandlers } from './pwa-handler.js';
 
 // --- INICIALIZAÇÃO E ESTADO GLOBAL ---
 const firebaseConfig = {
@@ -121,85 +122,49 @@ function handleEditItem(type, id) {
 }
 
 async function handleDeleteItem(type, id) {
-    // Encontra o item em qualquer uma das listas de estado relevantes
-    let item = state[`${type}s`]?.find(i => i.id === id);
-    let collectionName = `${type}s`; // Coleção padrão (ex: 'incomes', 'goals')
+    let item;
+    let collectionName = `${type}s`;
     
-    // CORREÇÃO: Lógica para identificar se o item é um item fixo gerado
     if (type === 'income' || type === 'expense') {
-        const potentialItem = state[type === 'income' ? 'incomes' : 'expenses'].find(i => i.id === id);
-        if (potentialItem?.isRecurring) {
-            // Se for um item recorrente, o alvo da exclusão é o *modelo* original.
+        item = state[collectionName].find(i => i.id === id);
+        if (item?.isRecurring) {
             type = type === 'income' ? 'recurringIncome' : 'recurringExpense';
             collectionName = `${type}s`;
             item = state[collectionName].find(i => i.id === id);
         }
-    } else if (type === 'timeEntry') {
-        collectionName = 'timeEntries';
+    } else {
+        item = state[collectionName]?.find(i => i.id === id);
     }
 
     if (!item) {
-        return console.error("ERRO CRÍTICO: Item para exclusão não encontrado no estado:", type, id);
+        return console.error("Item para exclusão não encontrado:", type, id);
     }
-
-    // Lógica de confirmação para diferentes tipos de item
-    let confirmed = false;
-    let deleteOption = 'all'; // Padrão para itens normais e recorrentes
-
-    if (type === 'expense' && item.installmentGroupId) {
-        const choice = await ui.showAdvancedConfirmation({
-            title: 'Excluir Despesa Parcelada',
-            message: 'Esta despesa é uma parcela. Como você deseja excluí-la?',
-            confirmText: 'Apagar Todas as Futuras',
-            secondaryText: 'Apagar Só Esta',
-        });
-        if (choice === 'cancel') return;
-        confirmed = true;
-        deleteOption = choice === 'confirm' ? 'all' : 'one';
-    } else {
-        confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.');
-    }
-
+    
+    const confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item?');
     if (!confirmed) return;
 
-    // Deleta do banco de dados usando o tipo e item corretos
-    const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item, deleteOption);
-
+    const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item);
     if (wasDeleted) {
-        // Força uma recarga completa dos dados do zero para garantir consistência total.
-        // Isso é mais seguro do que manipular o estado localmente e resolve o bug.
-        await updateDashboard(); 
+        await updateDashboard();
     }
 }
 
 async function handleSaveItem(type) {
-    // Determina o tipo base do modal para encontrar os elementos corretos no HTML.
-    // Ex: tanto 'income' quanto 'recurringIncome' usarão o 'income-modal'.
     const baseType = type.replace('recurring', '').toLowerCase();
     const modalId = `${baseType}-modal`;
     
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) {
-        console.error(`Formulário não encontrado para o modal: ${modalId}`);
-        return;
-    }
+    if (!formContainer) return;
 
-    // Encontra o botão de salvar pelo seu ID ATUAL, que corresponde ao 'type' da operação.
-    // Ex: Se o tipo for 'recurringIncome', o ID do botão será 'save-recurringIncome'.
     const saveBtn = document.getElementById(`save-${type}`);
     const id = saveBtn ? saveBtn.dataset.id : null;
     
     const itemData = {};
-    
-    // Coleta dados de todos os inputs do formulário.
     const inputs = formContainer.querySelectorAll('input, select');
     inputs.forEach(input => {
         if (!input.id || !input.id.includes(baseType)) return;
-        
         const key = input.id.replace(`${baseType}-`, '');
-        
-        // Lógica especial para o select de metas no formulário de investimento.
-         if (input.type === 'checkbox') {
+        if (input.type === 'checkbox') {
             itemData[key] = input.checked;
         } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].some(k => input.id.includes(k))) {
             itemData[key] = utils.parseBrazilianNumber(input.value) || parseInt(input.value, 10) || 0;
@@ -208,24 +173,36 @@ async function handleSaveItem(type) {
         }
     });
 
-    let saved = false;
-
-    // Se for um item recorrente novo, adiciona a data de criação.
     if ((type === 'recurringIncome' || type === 'recurringExpense') && !id) {
         itemData.createdAt = new Date().toISOString().split('T')[0];
     }
     
-    // Direciona para a função de salvamento correta com base no tipo.
+    let saved = false;
     if (type === 'expense') {
         const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
+        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments);
     } else {
         saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
     }
 
-    // Se o item foi salvo, fecha o modal e atualiza o dashboard.
     if (saved) {
         ui.closeModal(modalId);
+        await updateDashboard();
+    }
+}
+
+async function handleSaveContribution() {
+    const itemData = {
+        goalId: document.getElementById('contribution-goalId').value,
+        amount: utils.parseBrazilianNumber(document.getElementById('contribution-amount').value),
+        date: document.getElementById('contribution-date').value,
+    };
+    if (!itemData.goalId || !itemData.amount || !itemData.date) {
+        return ui.showToast('Todos os campos são obrigatórios.', 'error');
+    }
+    const saved = await db.saveItem(firestoreDB, state.currentUser, 'contribution', itemData);
+    if (saved) {
+        ui.closeModal('contribution-modal');
         await updateDashboard();
     }
 }
@@ -397,26 +374,10 @@ function handleGenerateReport() {
     ui.generateReport(state, totals);
 }
 
-async function handleSaveContribution() {
-    const itemData = {
-        goalId: document.getElementById('contribution-goalId').value,
-        amount: utils.parseBrazilianNumber(document.getElementById('contribution-amount').value),
-        date: document.getElementById('contribution-date').value,
-    };
-
-    if (!itemData.goalId || !itemData.amount || !itemData.date) {
-        return ui.showToast('Todos os campos são obrigatórios.', 'error');
-    }
-
-    const saved = await db.saveItem(firestoreDB, state.currentUser, 'contribution', itemData);
-    if (saved) {
-        ui.closeModal('contribution-modal');
-        await updateDashboard();
-    }
-}
-
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
+    initPwaHandlers();
+
     // --- Listeners do Cabeçalho e Ações Gerais ---
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
     document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updateDashboard(); });
@@ -427,9 +388,6 @@ function setupEventListeners() {
     document.getElementById('clear-all-btn').addEventListener('click', handleClearAll);
     document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
     document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
-    document.getElementById('save-contribution').addEventListener('click', handleSaveContribution);
-    document.getElementById('cancel-contribution').addEventListener('click', () => ui.closeModal('contribution-modal'));
-    document.getElementById('close-contribution-modal').addEventListener('click', () => ui.closeModal('contribution-modal'));
 
     // --- Listeners dos Botões de Adicionar ---
     document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
@@ -452,22 +410,23 @@ function setupEventListeners() {
     document.getElementById('save-password-btn').addEventListener('click', handlePasswordChange);
     document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
 
-    // --- LÓGICA DE LISTENERS DE MODAL (ROBUSTA E SEM CONFLITOS) ---
+    // --- Listeners do Modal de Contribuição ---
+    document.getElementById('save-contribution').addEventListener('click', handleSaveContribution);
+    document.getElementById('cancel-contribution').addEventListener('click', () => ui.closeModal('contribution-modal'));
+    document.getElementById('close-contribution-modal').addEventListener('click', () => ui.closeModal('contribution-modal'));
+
+    // --- LÓGICA DE LISTENERS DE MODAL (VERSÃO ÚNICA E CORRIGIDA) ---
     const modalTypesForSetup = ['income', 'expense', 'goal', 'investment'];
-    
     modalTypesForSetup.forEach(baseType => {
-        // Adiciona um listener para o botão de SALVAR de cada modal.
         const saveBtn = document.getElementById(`save-${baseType}`);
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 // No momento do clique, verifica qual é o ID ATUAL do botão.
-                // A função ui.showEditModal pode ter mudado o ID (ex: para 'save-recurringIncome').
                 const currentTypeToSave = saveBtn.id.replace('save-', '');
                 handleSaveItem(currentTypeToSave);
             });
         }
         
-        // Listeners para os botões de FECHAR e CANCELAR
         const closeBtn = document.getElementById(`close-${baseType}-modal`);
         if (closeBtn) closeBtn.addEventListener('click', () => ui.closeModal(`${baseType}-modal`));
         
@@ -490,12 +449,15 @@ function setupEventListeners() {
     });
 }
 
+
 // --- PONTO DE ENTRADA DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             state.currentUser = user;
             document.getElementById('main-container').style.display = 'block';
+            
+            // Carrega os dados e prepara a UI inicial
             await updateDashboard();
             
             const userName = user.displayName || user.email || 'Usuário';
@@ -510,8 +472,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.documentElement.classList.add('dark');
             }
             ui.updateThemeButton(localStorage.getItem('theme') || 'light');
-            const isPrivate = utils.initPrivacyMode();
-            ui.updatePrivacyButton(isPrivate);
             
             setupEventListeners();
             document.querySelector('.tab-btn[data-tab="income"]').click();

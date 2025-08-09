@@ -75,6 +75,13 @@
         <button id="reset-btn" class="w-full sm:w-auto bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/70 text-rose-800 dark:text-rose-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-redo mr-2"></i> Reiniciar Mês</button>
         <button id="clear-all-btn" class="w-full sm:w-auto bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900/70 text-red-800 dark:text-red-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i> Limpar Tudo</button>
     </div>
+    <div class="no-print flex items-center space-x-2 no-print px-4 sm:px-0">
+    </div>
+
+<div id="ios-install-banner" class="hidden no-print mt-4 bg-blue-50 dark:bg-blue-900/60 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg text-center">
+    <p class="font-bold">Instale nosso App no seu iPhone!</p>
+    <p class="text-sm">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
+</div>
 </header>
 
         <section class="mb-8">
@@ -519,16 +526,19 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="utils.js" type="module"></script>
-<script src="ui.js" type="module"></script>
-<script src="firestore.js" type="module"></script>
-<script src="calculator.js" type="module"></script>
 
-<script src="main.js" type="module"></script>
-     <script>
+    <script src="utils.js" type="module"></script>
+    <script src="core.js" type="module"></script>
+    <script src="calculator.js" type="module"></script>
+    <script src="firestore.js" type="module"></script>
+    <script src="ui.js" type="module"></script>
+    <script src="pwa-handler.js" type="module"></script>
+    <script src="main.js" type="module"></script>
+    
+    <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').then(registration => {
+          navigator.serviceWorker.register('./sw.js').then(registration => { // Use ./sw.js
             console.log('ServiceWorker registrado com sucesso: ', registration.scope);
           }, err => {
             console.log('Falha no registro do ServiceWorker: ', err);

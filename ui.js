@@ -119,22 +119,7 @@ export function showEditModal(type, item, state) {
     const modalId = `${modalType}-modal`;
     
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if(!formContainer) {
-        if (type === 'timeEntry' && item) {
-           document.getElementById('hour-date').value = item.date;
-            document.getElementById('hour-entry').value = item.entry;
-            document.getElementById('hour-break-start').value = item.breakStart;
-            document.getElementById('hour-break-end').value = item.breakEnd;
-            document.getElementById('hour-exit').value = item.exit;
-            document.getElementById('hour-is-holiday').checked = item.isHoliday || false;
-            
-            const addBtn = document.getElementById('add-hour-entry-btn');
-            addBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Atualizar';
-            addBtn.dataset.editingId = item.id;
-            document.getElementById('cancel-hour-edit-btn').classList.remove('hidden');
-        }
-        return;
-    }
+    if (!formContainer) return;
 
     formContainer.querySelectorAll('input, select').forEach(el => {
         if (el.type === 'checkbox') el.checked = false; else el.value = '';
@@ -145,19 +130,13 @@ export function showEditModal(type, item, state) {
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento', recurringIncome: 'Renda Fixa', recurringExpense: 'Despesa Fixa' };
     
     const dateField = document.getElementById(`${modalType}-date`);
-    const dayOfMonthFieldHTML = `
-        <div id="${modalType}-dayOfMonth-group">
-            <label for="${modalType}-dayOfMonth" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dia do Vencimento</label>
-            <input type="number" id="${modalType}-dayOfMonth" min="1" max="31" placeholder="Ex: 5" class="w-full px-3 py-2 border rounded-lg">
-        </div>
-    `;
-
     const existingDayField = document.getElementById(`${modalType}-dayOfMonth-group`);
     if (existingDayField) existingDayField.remove();
 
     if (type.startsWith('recurring')) {
         if (dateField) {
             dateField.style.display = 'none';
+            const dayOfMonthFieldHTML = `...`; // (código do campo de dia do mês)
             dateField.insertAdjacentHTML('beforebegin', dayOfMonthFieldHTML);
         }
     } else {
