@@ -21,7 +21,7 @@ const firestoreDB = firebase.firestore();
 
 const state = {
     currentUser: null,
-    incomes: [], expenses: [], goals: [], investments: [], timeEntries: [],
+    incomes: [], expenses: [], goals: [], investments: [], timeEntries: [], contributions: [],
     recurringIncomes: [], recurringExpenses: [],
     settings: {
         headerSubtitle: '', payPeriodStartDay: 1, overtimeStartDay: 24, overtimeEndDay: 23,
@@ -35,25 +35,23 @@ const state = {
 async function updateDashboard() {
     if (!state.currentUser) return;
 
-    // 1. RECARREGA TODOS OS DADOS NÃO-PERIÓDICOS (METAS, INVESTIMENTOS E ITENS FIXOS)
-    //    Isso garante que qualquer alteração (como uma exclusão) seja refletida.
-    const initialData = await db.loadInitialData(firestoreDB, state.currentUser);
-    const recurringData = await db.loadRecurringData(firestoreDB, state.currentUser);
+    const [initialData, recurringData] = await Promise.all([
+        db.loadInitialData(firestoreDB, state.currentUser),
+        db.loadRecurringData(firestoreDB, state.currentUser)
+    ]);
+    
     state.goals = initialData.goals;
     state.investments = initialData.investments;
+    state.contributions = initialData.contributions;
     state.settings = { ...state.settings, ...initialData.settings };
     state.recurringIncomes = recurringData.recurringIncomes;
     state.recurringExpenses = recurringData.recurringExpenses;
 
-    // 2. BUSCA OS DADOS QUE MUDAM A CADA MÊS
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
-    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
     const periodData = await db.loadPeriodData(firestoreDB, state.currentUser, periodRange.startDate, periodRange.endDate);
     
-    // 3. GERA AS TRANSAÇÕES FIXAS COM A LÓGICA ATUALIZADA (QUE NÃO MOSTRA NO PASSADO)
     const generateRecurring = (template) => {
         const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
-        
         if (template.createdAt) {
             const creationDate = new Date(template.createdAt);
             const firstDayOfVisibleMonth = new Date(state.currentYear, state.currentMonth - 1, 1);
@@ -61,7 +59,6 @@ async function updateDashboard() {
                 return null;
             }
         }
-        
         if (date >= periodRange.startDate && date <= periodRange.endDate) {
             return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
         }
@@ -71,29 +68,40 @@ async function updateDashboard() {
     const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
     const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
 
-    // 4. COMBINA OS DADOS E ATUALIZA O ESTADO
     state.incomes = [...periodData.incomes, ...generatedIncomes];
     state.expenses = [...periodData.expenses, ...generatedExpenses];
     state.timeEntries = periodData.timeEntries;
 
-    // 5. CHAMA A FUNÇÃO DE RENDERIZAÇÃO RÁPIDA
     rerenderUI();
 }
 
 function rerenderUI() {
     if (!state.currentUser) return;
+
     const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
     const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
     const totals = core.calculateTotals(state, periodRange, overtimeRange);
+
+    state.goals.forEach(goal => {
+        if (goal.name === 'Economia Mensal') {
+            goal.current = totals.monthSavings;
+        } else {
+            const linkedContributions = state.contributions.filter(c => c.goalId === goal.id);
+            const totalContributed = linkedContributions.reduce((sum, c) => sum + c.amount, 0);
+            goal.current = totalContributed;
+        }
+    });
+
     ui.updatePeriodDisplay(periodRange, overtimeRange);
     ui.updateDashboardCards(totals);
     const tableCallbacks = { onEdit: handleEditItem, onDelete: handleDeleteItem };
     ui.updateIncomeTable(state.incomes, { ...tableCallbacks, onCalc: sendIncomeToCalculator });
     ui.updateExpensesTable(state.expenses, state.settings.expenseCategories, { ...tableCallbacks, onStatusToggle: handleExpenseStatusToggle });
-    ui.updateGoalsTable(state.goals, totals.monthSavings, totals.totalInvested, tableCallbacks);
+    ui.updateGoalsTable(state.goals, tableCallbacks);
     ui.updateInvestmentsTable(state.investments, tableCallbacks);
     ui.updateHoursTable(state.timeEntries.filter(t => new Date(t.date + 'T00:00:00') >= overtimeRange.startDate && new Date(t.date + 'T00:00:00') <= overtimeRange.endDate), tableCallbacks);
     ui.updateRecurringItemsTable(state.recurringIncomes, state.recurringExpenses, state.settings.expenseCategories, tableCallbacks);
+    
     if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
         handleGenerateReport();
     }
@@ -165,6 +173,8 @@ async function handleDeleteItem(type, id) {
 }
 
 async function handleSaveItem(type) {
+    // Determina o tipo base do modal para encontrar os elementos corretos no HTML.
+    // Ex: tanto 'income' quanto 'recurringIncome' usarão o 'income-modal'.
     const baseType = type.replace('recurring', '').toLowerCase();
     const modalId = `${baseType}-modal`;
     
@@ -174,21 +184,22 @@ async function handleSaveItem(type) {
         return;
     }
 
-    // CORREÇÃO FINAL ESTÁ AQUI:
-    // O botão agora é encontrado pelo seu ID ATUAL, que corresponde ao 'type' da operação.
+    // Encontra o botão de salvar pelo seu ID ATUAL, que corresponde ao 'type' da operação.
     // Ex: Se o tipo for 'recurringIncome', o ID do botão será 'save-recurringIncome'.
     const saveBtn = document.getElementById(`save-${type}`);
     const id = saveBtn ? saveBtn.dataset.id : null;
     
     const itemData = {};
     
+    // Coleta dados de todos os inputs do formulário.
     const inputs = formContainer.querySelectorAll('input, select');
     inputs.forEach(input => {
         if (!input.id || !input.id.includes(baseType)) return;
         
         const key = input.id.replace(`${baseType}-`, '');
         
-        if (input.type === 'checkbox') {
+        // Lógica especial para o select de metas no formulário de investimento.
+         if (input.type === 'checkbox') {
             itemData[key] = input.checked;
         } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].some(k => input.id.includes(k))) {
             itemData[key] = utils.parseBrazilianNumber(input.value) || parseInt(input.value, 10) || 0;
@@ -199,10 +210,12 @@ async function handleSaveItem(type) {
 
     let saved = false;
 
+    // Se for um item recorrente novo, adiciona a data de criação.
     if ((type === 'recurringIncome' || type === 'recurringExpense') && !id) {
         itemData.createdAt = new Date().toISOString().split('T')[0];
     }
     
+    // Direciona para a função de salvamento correta com base no tipo.
     if (type === 'expense') {
         const installments = parseInt(document.getElementById('expense-installments').value) || 1;
         saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
@@ -210,6 +223,7 @@ async function handleSaveItem(type) {
         saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
     }
 
+    // Se o item foi salvo, fecha o modal e atualiza o dashboard.
     if (saved) {
         ui.closeModal(modalId);
         await updateDashboard();
@@ -383,6 +397,24 @@ function handleGenerateReport() {
     ui.generateReport(state, totals);
 }
 
+async function handleSaveContribution() {
+    const itemData = {
+        goalId: document.getElementById('contribution-goalId').value,
+        amount: utils.parseBrazilianNumber(document.getElementById('contribution-amount').value),
+        date: document.getElementById('contribution-date').value,
+    };
+
+    if (!itemData.goalId || !itemData.amount || !itemData.date) {
+        return ui.showToast('Todos os campos são obrigatórios.', 'error');
+    }
+
+    const saved = await db.saveItem(firestoreDB, state.currentUser, 'contribution', itemData);
+    if (saved) {
+        ui.closeModal('contribution-modal');
+        await updateDashboard();
+    }
+}
+
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
     // --- Listeners do Cabeçalho e Ações Gerais ---
@@ -395,6 +427,9 @@ function setupEventListeners() {
     document.getElementById('clear-all-btn').addEventListener('click', handleClearAll);
     document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
     document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
+    document.getElementById('save-contribution').addEventListener('click', handleSaveContribution);
+    document.getElementById('cancel-contribution').addEventListener('click', () => ui.closeModal('contribution-modal'));
+    document.getElementById('close-contribution-modal').addEventListener('click', () => ui.closeModal('contribution-modal'));
 
     // --- Listeners dos Botões de Adicionar ---
     document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
@@ -457,60 +492,17 @@ function setupEventListeners() {
 
 // --- PONTO DE ENTRADA DA APLICAÇÃO ---
 document.addEventListener('DOMContentLoaded', () => {
-    // SUBSTITUA O BLOCO auth.onAuthStateChanged INTEIRO PELA VERSÃO ABAIXO EM main.js
-
     auth.onAuthStateChanged(async (user) => {
-        // 1. VERIFICA SE O USUÁRIO ESTÁ LOGADO
         if (user) {
-            // Se o usuário existir, armazena seus dados no estado global da aplicação
             state.currentUser = user;
-            
-            // Torna o conteúdo principal da página visível
             document.getElementById('main-container').style.display = 'block';
+            await updateDashboard();
             
-            // 2. CARREGAMENTO OTIMIZADO DOS DADOS
-            // Dispara todas as buscas de dados no Firestore ao mesmo tempo para ser mais rápido
-            const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
-            const [initialData, recurringData, periodData] = await Promise.all([
-                db.loadInitialData(firestoreDB, user),
-                db.loadRecurringData(firestoreDB, user),
-                db.loadPeriodData(firestoreDB, user, periodRange.startDate, periodRange.endDate)
-            ]);
-
-            // 3. ATUALIZA O ESTADO DA APLICAÇÃO COM OS DADOS CARREGADOS
-            // Dados que não mudam com o mês (metas, investimentos, configurações)
-            state.goals = initialData.goals;
-            state.investments = initialData.investments;
-            state.settings = { ...state.settings, ...initialData.settings };
-            
-            // Modelos de transações recorrentes (rendas e despesas fixas)
-            state.recurringIncomes = recurringData.recurringIncomes;
-            state.recurringExpenses = recurringData.recurringExpenses;
-
-            // Gera as transações do mês atual a partir dos modelos recorrentes
-            const generateRecurring = (template) => {
-                const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
-                if (date >= periodRange.startDate && date <= periodRange.endDate) {
-                    return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
-                }
-                return null;
-            };
-            const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
-            const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
-            
-            // Combina os dados do período com as transações recorrentes geradas
-            state.incomes = [...periodData.incomes, ...generatedIncomes];
-            state.expenses = [...periodData.expenses, ...generatedExpenses];
-            state.timeEntries = periodData.timeEntries;
-
-            // 4. PREPARA A INTERFACE BÁSICA DO USUÁRIO (UI)
-            // Define o nome do usuário no cabeçalho e a mensagem de boas-vindas
             const userName = user.displayName || user.email || 'Usuário';
             document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || userName;
             document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua planilha, ${userName}!`;
             document.getElementById('user-email-display').textContent = user.email;
             
-            // Preenche os seletores de ano e mês e define o tema (claro/escuro)
             ui.populateYearDropdown();
             document.getElementById('year-select').value = state.currentYear;
             document.getElementById('month-select').value = state.currentMonth;
@@ -521,18 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const isPrivate = utils.initPrivacyMode();
             ui.updatePrivacyButton(isPrivate);
             
-            // 5. FINALIZA A INICIALIZAÇÃO
-            // Adiciona os event listeners a todos os botões da página
             setupEventListeners();
-            
-            // Renderiza o dashboard com todos os dados calculados
-            rerenderUI();
-            
-            // Simula um clique na aba "Renda" para ser a visualização inicial
             document.querySelector('.tab-btn[data-tab="income"]').click();
-
         } else {
-            // Se não houver um usuário logado, redireciona para a página de login
             window.location.href = 'login.html';
         }
     });

@@ -1,7 +1,7 @@
 // Arquivo: firestore.js
 // Isola toda a comunicação com o banco de dados Firebase Firestore.
 
-import { showToast, showConfirmation } from './ui.js';
+import { showToast } from './ui.js';
 
 // --- FUNÇÕES DE LEITURA (READ) ---
 
@@ -28,14 +28,21 @@ export async function loadInitialData(db, currentUser) {
     const userDocRef = db.collection('users').doc(currentUser.uid);
 
     const loadCollection = async (collectionName) => {
-        const snapshot = await userDocRef.collection(collectionName).get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        try {
+            const snapshot = await userDocRef.collection(collectionName).get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (e) {
+            console.error(`Falha ao carregar coleção ${collectionName}:`, e);
+            // Retorna um array vazio para não quebrar o Promise.all
+            return []; 
+        }
     };
 
     try {
-        const [goals, investments] = await Promise.all([
+        const [goals, investments, contributions] = await Promise.all([
             loadCollection('goals'),
-            loadCollection('investments')
+            loadCollection('investments'),
+            loadCollection('contributions')
         ]);
 
         let settings = {};
@@ -44,11 +51,11 @@ export async function loadInitialData(db, currentUser) {
             settings = userSettingsDoc.data();
         }
 
-        return { goals, investments, settings };
+        return { goals, investments, contributions, settings };
     } catch (error) {
         console.error("Erro ao carregar dados iniciais:", error);
         showToast("Falha ao carregar dados iniciais.", "error");
-        return { goals: [], investments: [], settings: {} };
+        return { goals: [], investments: [], contributions: [], settings: {} };
     }
 }
 
@@ -81,21 +88,14 @@ export async function loadPeriodData(db, currentUser, startDate, endDate) {
 // --- FUNÇÕES DE ESCRITA (CREATE / UPDATE) ---
 
 export async function saveItem(db, currentUser, type, itemData, id) {
-    // Adiciona a lógica para corrigir o nome da coleção
-    const collectionName = type === 'timeEntry' ? 'timeEntries' : `${type}s`;
-
-    // Objeto para traduzir os tipos para o português na mensagem de sucesso
-    const userFriendlyTypeNames = {
-        income: 'Renda',
-        expense: 'Despesa',
-        goal: 'Meta',
-        investment: 'Investimento',
-        timeEntry: 'Registro de horas',
-        recurringIncome: 'Renda fixa',
-        recurringExpense: 'Despesa fixa'
-    };
+    const collectionName = type.endsWith('y') ? type.slice(0, -1) + 'ies' : `${type}s`;
     
-    // Usa o nome traduzido ou o nome original como fallback
+    const userFriendlyTypeNames = {
+        income: 'Renda', expense: 'Despesa', goal: 'Meta',
+        investment: 'Investimento', timeEntry: 'Registro de horas',
+        recurringIncome: 'Renda fixa', recurringExpense: 'Despesa fixa',
+        contribution: 'Contribuição'
+    };
     const friendlyName = userFriendlyTypeNames[type] || type;
 
     try {
@@ -104,7 +104,6 @@ export async function saveItem(db, currentUser, type, itemData, id) {
         } else {
             await db.collection('users').doc(currentUser.uid).collection(collectionName).add(itemData);
         }
-        // CORREÇÃO APLICADA AQUI: Usa a variável 'friendlyName'
         showToast(`${friendlyName} salvo(a) com sucesso!`, 'success');
         return true;
     } catch (e) {
@@ -114,30 +113,11 @@ export async function saveItem(db, currentUser, type, itemData, id) {
     }
 }
 
-
-export async function saveExpense(db, currentUser, expenseData, id, installments, updateAll) {
+export async function saveExpense(db, currentUser, expenseData, id, installments) {
     try {
-        // Editando uma despesa existente
         if (id) {
-            const originalExpenseRef = db.collection('users').doc(currentUser.uid).collection('expenses').doc(id);
-            // Se for para atualizar todas as parcelas futuras com uma nova categoria, por exemplo
-            if (updateAll && expenseData.installmentGroupId) {
-                 const batch = db.batch();
-                 const futureInstallmentsQuery = db.collection('users').doc(currentUser.uid).collection('expenses')
-                    .where('installmentGroupId', '==', expenseData.installmentGroupId)
-                    .where('date', '>=', expenseData.date);
-                
-                const snapshot = await futureInstallmentsQuery.get();
-                snapshot.docs.forEach(doc => {
-                    batch.update(doc.ref, { category: expenseData.category }); 
-                });
-                await batch.commit();
-                showToast('Parcelas futuras atualizadas!', 'success');
-            }
-            // Atualiza o item principal
-            await originalExpenseRef.update(expenseData);
-
-        } else { // Criando nova(s) despesa(s)
+             await db.collection('users').doc(currentUser.uid).collection('expenses').doc(id).update(expenseData);
+        } else { 
             const batch = db.batch();
             const userDocRef = db.collection('users').doc(currentUser.uid);
             const groupId = (installments > 1) ? db.collection('users').doc().id : null;
@@ -149,27 +129,8 @@ export async function saveExpense(db, currentUser, expenseData, id, installments
                     newExpense.description = `${expenseData.description} (${i + 1}/${installments})`;
                     newExpense.installmentGroupId = groupId;
                 }
-                
-                // --- LÓGICA DE DATA CORRIGIDA ---
-                const originalYear = originalDate.getFullYear();
-                const originalMonth = originalDate.getMonth(); // Mês base 0 (Janeiro = 0)
-                const originalDay = originalDate.getDate();
-
-                // Calcula o mês e o ano da parcela atual
-                const targetMonthIndex = originalMonth + i;
-                const newYear = originalYear + Math.floor(targetMonthIndex / 12);
-                const newMonth = targetMonthIndex % 12;
-
-                // Descobre o último dia do mês de destino
-                const daysInTargetMonth = new Date(newYear, newMonth + 1, 0).getDate();
-
-                // Garante que o dia não ultrapasse o limite do mês (ex: dia 31 em Fevereiro vira dia 28)
-                const newDay = Math.min(originalDay, daysInTargetMonth);
-
-                // Cria a data final da parcela
-                const installmentDate = new Date(newYear, newMonth, newDay);
+                const installmentDate = new Date(originalDate.getFullYear(), originalDate.getMonth() + i, originalDate.getDate());
                 newExpense.date = installmentDate.toISOString().split('T')[0];
-                // --- FIM DA LÓGICA CORRIGIDA ---
                 
                 const newDocRef = userDocRef.collection('expenses').doc();
                 batch.set(newDocRef, newExpense);

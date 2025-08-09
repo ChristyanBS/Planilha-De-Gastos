@@ -96,6 +96,14 @@ export function showConfirmation(title, message, confirmButtonClass = 'bg-red-60
 
 // --- Funções de Modal ---
 
+export function showContributionModal(goalId, goalName) {
+    document.getElementById('contribution-modal-title').textContent = `Contribuir para: ${goalName}`;
+    document.getElementById('contribution-goalId').value = goalId;
+    document.getElementById('contribution-amount').value = '';
+    document.getElementById('contribution-date').value = new Date().toISOString().split('T')[0];
+    openModal('contribution-modal');
+}
+
 export function openModal(modalId) {
     document.getElementById(modalId)?.classList.remove('hidden');
     document.getElementById(modalId)?.classList.add('flex');
@@ -107,23 +115,19 @@ export function closeModal(modalId) {
 }
 
 export function showEditModal(type, item, state) {
-    // Define qual modal usar. Itens recorrentes usarão os mesmos modais dos normais.
-    const modalType = type.replace('recurring', '').toLowerCase(); // 'recurringIncome' vira 'income'
+    const modalType = type.replace('recurring', '').toLowerCase();
     const modalId = `${modalType}-modal`;
     
-    // Reseta o formulário
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
     if(!formContainer) {
-        // Lógica especial para o formulário de horas, que não é um modal
         if (type === 'timeEntry' && item) {
-            document.getElementById('hour-date').value = item.date;
+           document.getElementById('hour-date').value = item.date;
             document.getElementById('hour-entry').value = item.entry;
             document.getElementById('hour-break-start').value = item.breakStart;
             document.getElementById('hour-break-end').value = item.breakEnd;
             document.getElementById('hour-exit').value = item.exit;
             document.getElementById('hour-is-holiday').checked = item.isHoliday || false;
             
-            // Altera o botão para "Atualizar"
             const addBtn = document.getElementById('add-hour-entry-btn');
             addBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Atualizar';
             addBtn.dataset.editingId = item.id;
@@ -136,31 +140,30 @@ export function showEditModal(type, item, state) {
         if (el.type === 'checkbox') el.checked = false; else el.value = '';
     });
 
-    // Pega os elementos do modal
     const saveBtn = document.getElementById(`save-${modalType}`);
     const modalTitle = document.getElementById(modalId).querySelector('h3');
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento', recurringIncome: 'Renda Fixa', recurringExpense: 'Despesa Fixa' };
     
-    // CORREÇÃO: Esconde/mostra campos com base no tipo
     const dateField = document.getElementById(`${modalType}-date`);
     const dayOfMonthFieldHTML = `
         <div id="${modalType}-dayOfMonth-group">
-            <label for="${modalType}-dayOfMonth" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dia do Pagamento/Vencimento</label>
-            <input type="number" id="${modalType}-dayOfMonth" min="1" max="31" placeholder="Ex: 5" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            <label for="${modalType}-dayOfMonth" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dia do Vencimento</label>
+            <input type="number" id="${modalType}-dayOfMonth" min="1" max="31" placeholder="Ex: 5" class="w-full px-3 py-2 border rounded-lg">
         </div>
     `;
 
-    // Remove o campo de dia do mês se ele já existir de uma chamada anterior
     const existingDayField = document.getElementById(`${modalType}-dayOfMonth-group`);
     if (existingDayField) existingDayField.remove();
 
     if (type.startsWith('recurring')) {
-        // MODO RECORRENTE
-        dateField.style.display = 'none'; // Esconde a data completa
-        dateField.insertAdjacentHTML('beforebegin', dayOfMonthFieldHTML); // Adiciona o campo de dia
+        if (dateField) {
+            dateField.style.display = 'none';
+            dateField.insertAdjacentHTML('beforebegin', dayOfMonthFieldHTML);
+        }
     } else {
-        // MODO NORMAL
-        dateField.style.display = 'block'; // Mostra a data completa
+        if (dateField) {
+            dateField.style.display = 'block';
+        }
     }
 
     if (modalType === 'expense') {
@@ -168,27 +171,24 @@ export function showEditModal(type, item, state) {
         document.getElementById('installments-group').style.display = type.startsWith('recurring') ? 'none' : 'block';
     }
 
-    // Preenche o formulário para edição ou o prepara para adição
-    if (item) { // Modo Edição
+    if (item) {
         saveBtn.dataset.id = item.id;
         saveBtn.textContent = 'Atualizar';
         modalTitle.textContent = `Editar ${ptTerms[type]}`;
         for (const key in item) {
             const input = document.getElementById(`${modalType}-${key}`);
-            if(input) input.value = item[key];
+            if (input) input.value = item[key];
         }
-    } else { // Modo Adicionar
+    } else {
         saveBtn.removeAttribute('data-id');
         saveBtn.textContent = 'Salvar';
         modalTitle.textContent = `Adicionar ${ptTerms[type]}`;
-        if (dateField.style.display !== 'none') {
+        if (dateField && dateField.style.display !== 'none') {
             dateField.value = new Date().toISOString().split('T')[0];
         }
     }
     
-    // Redireciona o clique do botão de salvar para o tipo correto (normal ou recorrente)
-    saveBtn.id = `save-${type}`; // Ex: 'save-income' ou 'save-recurringIncome'
-
+    saveBtn.id = `save-${type}`;
     openModal(modalId);
 }
 
@@ -454,45 +454,44 @@ export function updateExpensesTable(expenses, categories, callbacks) {
     document.querySelectorAll('#expenses-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
 }
 
-export function updateGoalsTable(goals, monthSavings, totalInvested, callbacks) {
+export function updateGoalsTable(goals, callbacks) {
     const savingsGoal = goals.find(g => g.name === "Economia Mensal");
+    const emergencyGoal = goals.find(g => g.name === "Reserva de Emergência");
+
     if (savingsGoal) {
-        savingsGoal.current = monthSavings;
         const percent = savingsGoal.target > 0 ? Math.min(Math.round((savingsGoal.current / savingsGoal.target) * 100), 100) : 0;
         document.getElementById('monthly-savings-amount').innerHTML = `${formatCurrency(savingsGoal.current)} de <span id="monthly-savings-target">${formatCurrency(savingsGoal.target)}</span>`;
         document.getElementById('monthly-savings-percent').textContent = `${percent}%`;
         document.getElementById('monthly-savings-progress').style.width = `${percent}%`;
     }
 
-    const emergencyGoal = goals.find(g => g.name === "Reserva de Emergência");
     if (emergencyGoal) {
-        emergencyGoal.current = totalInvested;
         const percent = emergencyGoal.target > 0 ? Math.min(Math.round((emergencyGoal.current / emergencyGoal.target) * 100), 100) : 0;
         document.getElementById('emergency-fund-amount').innerHTML = `${formatCurrency(emergencyGoal.current)} de <span id="emergency-fund-target">${formatCurrency(emergencyGoal.target)}</span>`;
         document.getElementById('emergency-fund-percent').textContent = `${percent}%`;
         document.getElementById('emergency-fund-progress').style.width = `${percent}%`;
     }
 
-    const personalGoals = goals.filter(g => g.name !== "Economia Mensal" && g.name !== "Reserva de Emergência").sort((a, b) => (a.name > b.name) ? 1 : -1);
+    const personalGoals = goals.filter(g => g.name !== "Economia Mensal" && g.name !== "Reserva de Emergência").sort((a, b) => a.name.localeCompare(b.name));
 
     createTable('goals-table', personalGoals, item => {
         const row = document.createElement('tr');
         const percent = item.target > 0 ? Math.min(Math.round((item.current / item.target) * 100), 100) : 0;
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap">${item.name}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.target)}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.current)}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${item.deadline ? new Date(item.deadline + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
-            <td class="px-6 py-4 whitespace-nowrap">
-                <div class="progress-bar"><div class="progress-fill bg-blue-600" style="width: ${percent}%"></div></div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap text-right no-print">
-                <button class="edit-btn" data-id="${item.id}" data-type="goal"><i class="fas fa-edit text-indigo-600"></i></button>
+            <td class="px-6 py-4">${item.name}</td>
+            <td class="px-6 py-4">${formatCurrency(item.target)}</td>
+            <td class="px-6 py-4">${formatCurrency(item.current)}</td>
+            <td class="px-6 py-4">${item.deadline ? new Date(item.deadline + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+            <td class="px-6 py-4"><div class="progress-bar"><div class="progress-fill bg-blue-600" style="width: ${percent}%"></div></div></td>
+            <td class="px-6 py-4 text-right no-print">
+                <button class="contribute-btn text-xl text-green-500 hover:text-green-400" data-id="${item.id}" data-name="${item.name}" title="Adicionar Contribuição"><i class="fas fa-plus-circle"></i></button>
+                <button class="edit-btn ml-4" data-id="${item.id}" data-type="goal"><i class="fas fa-edit text-indigo-600"></i></button>
                 <button class="delete-btn ml-4" data-id="${item.id}" data-type="goal"><i class="fas fa-trash text-red-600"></i></button>
             </td>`;
         return row;
     });
 
+    document.querySelectorAll('#goals-table .contribute-btn').forEach(btn => btn.addEventListener('click', () => showContributionModal(btn.dataset.id, btn.dataset.name)));
     document.querySelectorAll('#goals-table .edit-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onEdit(btn.dataset.type, btn.dataset.id)));
     document.querySelectorAll('#goals-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
 }
