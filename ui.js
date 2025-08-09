@@ -107,7 +107,11 @@ export function closeModal(modalId) {
 }
 
 export function showEditModal(type, item, state) {
-    const modalId = `${type}-modal`;
+    // Define qual modal usar. Itens recorrentes usarão os mesmos modais dos normais.
+    const modalType = type.replace('recurring', '').toLowerCase(); // 'recurringIncome' vira 'income'
+    const modalId = `${modalType}-modal`;
+    
+    // Reseta o formulário
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
     if(!formContainer) {
         // Lógica especial para o formulário de horas, que não é um modal
@@ -132,48 +136,59 @@ export function showEditModal(type, item, state) {
         if (el.type === 'checkbox') el.checked = false; else el.value = '';
     });
 
-    const saveBtn = document.getElementById(`save-${type}`);
+    // Pega os elementos do modal
+    const saveBtn = document.getElementById(`save-${modalType}`);
     const modalTitle = document.getElementById(modalId).querySelector('h3');
-    const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento' };
+    const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento', recurringIncome: 'Renda Fixa', recurringExpense: 'Despesa Fixa' };
+    
+    // CORREÇÃO: Esconde/mostra campos com base no tipo
+    const dateField = document.getElementById(`${modalType}-date`);
+    const dayOfMonthFieldHTML = `
+        <div id="${modalType}-dayOfMonth-group">
+            <label for="${modalType}-dayOfMonth" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Dia do Pagamento/Vencimento</label>
+            <input type="number" id="${modalType}-dayOfMonth" min="1" max="31" placeholder="Ex: 5" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+        </div>
+    `;
 
-    if (type === 'expense') {
-        populateCategoryDropdown(state.settings.expenseCategories);
-        document.getElementById('installments-group').classList.add('hidden');
-        document.getElementById('new-category-input-group').classList.add('hidden');
+    // Remove o campo de dia do mês se ele já existir de uma chamada anterior
+    const existingDayField = document.getElementById(`${modalType}-dayOfMonth-group`);
+    if (existingDayField) existingDayField.remove();
+
+    if (type.startsWith('recurring')) {
+        // MODO RECORRENTE
+        dateField.style.display = 'none'; // Esconde a data completa
+        dateField.insertAdjacentHTML('beforebegin', dayOfMonthFieldHTML); // Adiciona o campo de dia
+    } else {
+        // MODO NORMAL
+        dateField.style.display = 'block'; // Mostra a data completa
     }
 
+    if (modalType === 'expense') {
+        populateCategoryDropdown(state.settings.expenseCategories);
+        document.getElementById('installments-group').style.display = type.startsWith('recurring') ? 'none' : 'block';
+    }
+
+    // Preenche o formulário para edição ou o prepara para adição
     if (item) { // Modo Edição
         saveBtn.dataset.id = item.id;
         saveBtn.textContent = 'Atualizar';
         modalTitle.textContent = `Editar ${ptTerms[type]}`;
-        
         for (const key in item) {
-            const input = document.getElementById(`${type}-${key}`);
-            if(input) {
-                if (input.type === 'checkbox') input.checked = item[key];
-                else if (typeof item[key] === 'number') input.value = String(item[key]).replace('.', ',');
-                else input.value = item[key];
-            }
+            const input = document.getElementById(`${modalType}-${key}`);
+            if(input) input.value = item[key];
         }
-        if (type === 'expense' && item.description) {
-            document.getElementById('expense-description').value = item.description.replace(/\s\(\d+\/\d+\)$/, '');
-        }
-        
     } else { // Modo Adicionar
         saveBtn.removeAttribute('data-id');
         saveBtn.textContent = 'Salvar';
         modalTitle.textContent = `Adicionar ${ptTerms[type]}`;
-        const dateField = document.getElementById(`${type}-date`);
-        if (dateField) {
-            const today = new Date();
-            if (state.currentYear === today.getFullYear() && state.currentMonth === today.getMonth() + 1) {
-                dateField.value = today.toISOString().split('T')[0];
-            } else {
-                dateField.value = `${state.currentYear}-${String(state.currentMonth).padStart(2, '0')}-01`;
-            }
+        if (dateField.style.display !== 'none') {
+            dateField.value = new Date().toISOString().split('T')[0];
         }
-        if (type === 'expense') document.getElementById('installments-group').classList.remove('hidden');
     }
+    
+    // Redireciona o clique do botão de salvar para o tipo correto (normal ou recorrente)
+    saveBtn.id = `save-${type}`; // Ex: 'save-income' ou 'save-recurringIncome'
+
     openModal(modalId);
 }
 

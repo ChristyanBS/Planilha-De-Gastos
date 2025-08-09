@@ -113,18 +113,25 @@ function handleEditItem(type, id) {
 }
 
 async function handleDeleteItem(type, id) {
-    let collectionName;
-    switch (type) {
-        case 'timeEntry': collectionName = 'timeEntries'; break;
-        case 'recurringIncome': collectionName = 'recurringIncomes'; break;
-        case 'recurringExpense': collectionName = 'recurringExpenses'; break;
-        default: collectionName = `${type}s`;
+    // Encontra o item em qualquer uma das listas de estado relevantes
+    let item = state[`${type}s`]?.find(i => i.id === id);
+    let collectionName = `${type}s`; // Coleção padrão (ex: 'incomes', 'goals')
+    
+    // CORREÇÃO: Lógica para identificar se o item é um item fixo gerado
+    if (type === 'income' || type === 'expense') {
+        const potentialItem = state[type === 'income' ? 'incomes' : 'expenses'].find(i => i.id === id);
+        if (potentialItem?.isRecurring) {
+            // Se for um item recorrente, o alvo da exclusão é o *modelo* original.
+            type = type === 'income' ? 'recurringIncome' : 'recurringExpense';
+            collectionName = `${type}s`;
+            item = state[collectionName].find(i => i.id === id);
+        }
+    } else if (type === 'timeEntry') {
+        collectionName = 'timeEntries';
     }
-    const collection = state[collectionName];
-    const item = collection?.find(i => i.id === id);
 
     if (!item) {
-        return console.error("ERRO: Item não encontrado no estado local:", type, id);
+        return console.error("ERRO CRÍTICO: Item para exclusão não encontrado no estado:", type, id);
     }
 
     // Lógica de confirmação para diferentes tipos de item
@@ -142,80 +149,70 @@ async function handleDeleteItem(type, id) {
         confirmed = true;
         deleteOption = choice === 'confirm' ? 'all' : 'one';
     } else {
-        // Confirmação padrão para todos os outros itens
-        confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item?');
+        confirmed = await ui.showConfirmation('Confirmar Exclusão', 'Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.');
     }
 
-    if (!confirmed) return; // Se o usuário cancelar, a função para aqui.
+    if (!confirmed) return;
 
-    // 1. Deleta o item do banco de dados
+    // Deleta do banco de dados usando o tipo e item corretos
     const wasDeleted = await db.handleDelete(firestoreDB, state.currentUser, type, item, deleteOption);
 
-    // 2. Se a exclusão no banco de dados funcionou...
     if (wasDeleted) {
-        // ...ATUALIZA A LISTA LOCAL (na memória) MANUALMENTE...
-        const index = collection.findIndex(i => i.id === id);
-        if (index > -1) {
-            collection.splice(index, 1);
-        }
-        
-        // ...E CHAMA A FUNÇÃO DE REDESENHO RÁPIDO!
-        // Isso usa a lista que acabamos de corrigir e não precisa ir ao banco de novo.
-        rerenderUI();
+        // Força uma recarga completa dos dados do zero para garantir consistência total.
+        // Isso é mais seguro do que manipular o estado localmente e resolve o bug.
+        await updateDashboard(); 
     }
 }
 
 async function handleSaveItem(type) {
-    const modalId = `${type}-modal`;
+    const baseType = type.replace('recurring', '').toLowerCase();
+    const modalId = `${baseType}-modal`;
+    
     const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) return;
+    if (!formContainer) {
+        console.error(`Formulário não encontrado para o modal: ${modalId}`);
+        return;
+    }
 
-    const id = document.getElementById(`save-${type}`).dataset.id;
-    const isRecurring = document.getElementById(`${type}-isRecurring`)?.checked || false;
+    // CORREÇÃO FINAL ESTÁ AQUI:
+    // O botão agora é encontrado pelo seu ID ATUAL, que corresponde ao 'type' da operação.
+    // Ex: Se o tipo for 'recurringIncome', o ID do botão será 'save-recurringIncome'.
+    const saveBtn = document.getElementById(`save-${type}`);
+    const id = saveBtn ? saveBtn.dataset.id : null;
+    
     const itemData = {};
     
-    // (o código que coleta os dados dos inputs continua o mesmo...)
     const inputs = formContainer.querySelectorAll('input, select');
     inputs.forEach(input => {
-        if (!input.id || input.id.startsWith('save-') || input.id.startsWith('cancel-') || input.id.startsWith('close-')) return;
-        const key = input.id.replace(`${type}-`, '').replace('-checkbox', '');
-        if (input.type === 'checkbox') itemData[key] = input.checked;
-        else if (input.type === 'number' || input.id.includes('amount') || input.id.includes('target') || input.id.includes('yield') || input.id.includes('current')) {
-            itemData[key] = utils.parseBrazilianNumber(input.value);
+        if (!input.id || !input.id.includes(baseType)) return;
+        
+        const key = input.id.replace(`${baseType}-`, '');
+        
+        if (input.type === 'checkbox') {
+            itemData[key] = input.checked;
+        } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].some(k => input.id.includes(k))) {
+            itemData[key] = utils.parseBrazilianNumber(input.value) || parseInt(input.value, 10) || 0;
         } else {
             itemData[key] = input.value.trim();
         }
     });
 
-    if (isRecurring) {
-        // Se for um item recorrente, adicionamos a data de hoje como data de criação
-        if (!id) { // Adiciona a data de criação apenas se for um item novo
-            itemData.createdAt = new Date().toISOString().split('T')[0];
-        }
-        itemData.dayOfMonth = new Date(itemData.date + 'T00:00:00').getDate();
-        delete itemData.date;
-        delete itemData.paid;
-        delete itemData.isRecurring;
-        
-        const recurringType = type === 'income' ? 'recurringIncome' : 'recurringExpense';
-        const saved = await db.saveItem(firestoreDB, state.currentUser, recurringType, itemData, id);
-        if (saved) {
-            ui.closeModal(modalId);
-            await updateDashboard();
-        }
+    let saved = false;
+
+    if ((type === 'recurringIncome' || type === 'recurringExpense') && !id) {
+        itemData.createdAt = new Date().toISOString().split('T')[0];
+    }
+    
+    if (type === 'expense') {
+        const installments = parseInt(document.getElementById('expense-installments').value) || 1;
+        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
     } else {
-        // Lógica para itens normais (não-recorrentes)
-        let saved = false;
-        if (type === 'expense') {
-            const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-            saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments, false);
-        } else {
-            saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
-        }
-        if (saved) {
-            ui.closeModal(modalId);
-            await updateDashboard();
-        }
+        saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
+    }
+
+    if (saved) {
+        ui.closeModal(modalId);
+        await updateDashboard();
     }
 }
 
@@ -388,6 +385,7 @@ function handleGenerateReport() {
 
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
+    // --- Listeners do Cabeçalho e Ações Gerais ---
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
     document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updateDashboard(); });
@@ -395,26 +393,54 @@ function setupEventListeners() {
     document.getElementById('theme-toggle-btn').addEventListener('click', () => { ui.toggleTheme(); rerenderUI(); });
     document.getElementById('reset-btn').addEventListener('click', handleResetMonth);
     document.getElementById('clear-all-btn').addEventListener('click', handleClearAll);
-    document.getElementById('save-settings-btn').addEventListener('click', handleSaveSettings);
-    document.getElementById('save-password-btn').addEventListener('click', handlePasswordChange);
-    document.getElementById('add-provento-btn').addEventListener('click', () => handleAddCustomItem('provento'));
-    document.getElementById('add-discount-btn').addEventListener('click', () => handleAddCustomItem('discount'));
+    document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
+    document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
+
+    // --- Listeners dos Botões de Adicionar ---
     document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
     document.getElementById('add-expense-btn').addEventListener('click', () => ui.showEditModal('expense', null, state));
     document.getElementById('add-goal-btn').addEventListener('click', () => ui.showEditModal('goal', null, state));
     document.getElementById('add-investment-btn').addEventListener('click', () => ui.showEditModal('investment', null, state));
     document.getElementById('add-hour-entry-btn').addEventListener('click', handleSaveTimeEntry);
+    
+    // --- Listeners para Itens Fixos (Recorrentes) ---
+    document.getElementById('add-recurring-income-btn').addEventListener('click', () => ui.showEditModal('recurringIncome', null, state));
+    document.getElementById('add-recurring-expense-btn').addEventListener('click', () => ui.showEditModal('recurringExpense', null, state));
+    
+    // --- Listeners da Calculadora ---
     document.getElementById('calculate-salary-btn').addEventListener('click', handleCalculateSalary);
+    document.getElementById('add-provento-btn').addEventListener('click', () => handleAddCustomItem('provento'));
+    document.getElementById('add-discount-btn').addEventListener('click', () => handleAddCustomItem('discount'));
+
+    // --- Listeners da Conta e Relatórios ---
+    document.getElementById('save-settings-btn').addEventListener('click', handleSaveSettings);
+    document.getElementById('save-password-btn').addEventListener('click', handlePasswordChange);
     document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
-    document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
-document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
 
-    ['income', 'expense', 'goal', 'investment'].forEach(type => {
-        document.getElementById(`save-${type}`).addEventListener('click', () => handleSaveItem(type));
-        document.getElementById(`close-${type}-modal`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
-        document.getElementById(`cancel-${type}`).addEventListener('click', () => ui.closeModal(`${type}-modal`));
+    // --- LÓGICA DE LISTENERS DE MODAL (ROBUSTA E SEM CONFLITOS) ---
+    const modalTypesForSetup = ['income', 'expense', 'goal', 'investment'];
+    
+    modalTypesForSetup.forEach(baseType => {
+        // Adiciona um listener para o botão de SALVAR de cada modal.
+        const saveBtn = document.getElementById(`save-${baseType}`);
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                // No momento do clique, verifica qual é o ID ATUAL do botão.
+                // A função ui.showEditModal pode ter mudado o ID (ex: para 'save-recurringIncome').
+                const currentTypeToSave = saveBtn.id.replace('save-', '');
+                handleSaveItem(currentTypeToSave);
+            });
+        }
+        
+        // Listeners para os botões de FECHAR e CANCELAR
+        const closeBtn = document.getElementById(`close-${baseType}-modal`);
+        if (closeBtn) closeBtn.addEventListener('click', () => ui.closeModal(`${baseType}-modal`));
+        
+        const cancelBtn = document.getElementById(`cancel-${baseType}`);
+        if (cancelBtn) cancelBtn.addEventListener('click', () => ui.closeModal(`${baseType}-modal`));
     });
-
+    
+    // --- Listener de Navegação por Abas ---
     document.querySelectorAll('.tab-btn').forEach(button => {
         button.addEventListener('click', function() {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
@@ -423,7 +449,6 @@ document.getElementById('mobile-menu-overlay').addEventListener('click', ui.clos
             document.getElementById(`${this.dataset.tab}-content`)?.classList.remove('hidden');
             const nonMonthTabs = ['reports', 'calculator', 'account', 'investments', 'goals', 'recurring'];
             document.querySelectorAll('#month-select, #year-select').forEach(sel => sel.classList.toggle('hidden', nonMonthTabs.includes(this.dataset.tab)));
-             // Fecha o menu mobile
             ui.closeMobileMenu();
             handleTabChange(this.dataset.tab);
         });
@@ -435,12 +460,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // SUBSTITUA O BLOCO auth.onAuthStateChanged INTEIRO PELA VERSÃO ABAIXO EM main.js
 
     auth.onAuthStateChanged(async (user) => {
+        // 1. VERIFICA SE O USUÁRIO ESTÁ LOGADO
         if (user) {
+            // Se o usuário existir, armazena seus dados no estado global da aplicação
             state.currentUser = user;
+            
+            // Torna o conteúdo principal da página visível
             document.getElementById('main-container').style.display = 'block';
-            document.getElementById('user-email-display').textContent = user.email;
-
-            // --- LÓGICA DE CARREGAMENTO OTIMIZADA ---
+            
+            // 2. CARREGAMENTO OTIMIZADO DOS DADOS
+            // Dispara todas as buscas de dados no Firestore ao mesmo tempo para ser mais rápido
             const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
             const [initialData, recurringData, periodData] = await Promise.all([
                 db.loadInitialData(firestoreDB, user),
@@ -448,12 +477,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 db.loadPeriodData(firestoreDB, user, periodRange.startDate, periodRange.endDate)
             ]);
 
+            // 3. ATUALIZA O ESTADO DA APLICAÇÃO COM OS DADOS CARREGADOS
+            // Dados que não mudam com o mês (metas, investimentos, configurações)
             state.goals = initialData.goals;
             state.investments = initialData.investments;
             state.settings = { ...state.settings, ...initialData.settings };
+            
+            // Modelos de transações recorrentes (rendas e despesas fixas)
             state.recurringIncomes = recurringData.recurringIncomes;
             state.recurringExpenses = recurringData.recurringExpenses;
 
+            // Gera as transações do mês atual a partir dos modelos recorrentes
             const generateRecurring = (template) => {
                 const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
                 if (date >= periodRange.startDate && date <= periodRange.endDate) {
@@ -463,17 +497,20 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
             const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
+            
+            // Combina os dados do período com as transações recorrentes geradas
             state.incomes = [...periodData.incomes, ...generatedIncomes];
             state.expenses = [...periodData.expenses, ...generatedExpenses];
             state.timeEntries = periodData.timeEntries;
 
-            // --- PREPARAÇÃO DA UI BÁSICA ---
+            // 4. PREPARA A INTERFACE BÁSICA DO USUÁRIO (UI)
+            // Define o nome do usuário no cabeçalho e a mensagem de boas-vindas
+            const userName = user.displayName || user.email || 'Usuário';
+            document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || userName;
+            document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua planilha, ${userName}!`;
+            document.getElementById('user-email-display').textContent = user.email;
             
-            // LINHA CORRIGIDA E ADICIONADA DE VOLTA
-            document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || `${user.displayName || user.email}`;
-            const userName = user.displayName || 'Usuário';
-document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || userName;
-document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua planilha, ${userName}!`; // ADICIONADO DE VOLTA
+            // Preenche os seletores de ano e mês e define o tema (claro/escuro)
             ui.populateYearDropdown();
             document.getElementById('year-select').value = state.currentYear;
             document.getElementById('month-select').value = state.currentMonth;
@@ -484,12 +521,18 @@ document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua pl
             const isPrivate = utils.initPrivacyMode();
             ui.updatePrivacyButton(isPrivate);
             
+            // 5. FINALIZA A INICIALIZAÇÃO
+            // Adiciona os event listeners a todos os botões da página
             setupEventListeners();
             
+            // Renderiza o dashboard com todos os dados calculados
             rerenderUI();
             
+            // Simula um clique na aba "Renda" para ser a visualização inicial
             document.querySelector('.tab-btn[data-tab="income"]').click();
+
         } else {
+            // Se não houver um usuário logado, redireciona para a página de login
             window.location.href = 'login.html';
         }
     });

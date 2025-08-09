@@ -115,6 +115,7 @@
                 <button data-tab="income" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Renda</button>
                 <button data-tab="expenses" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Despesas</button>
                 <button data-tab="hours" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Horas</button>
+                <button data-tab="recurring" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Fixos</button>
                 <button data-tab="goals" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Metas</button>
                 <button data-tab="investments" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Investimentos</button>
                 <button data-tab="calculator" class="tab-btn py-3 px-4 sm:px-6 font-medium text-sm text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-400 whitespace-nowrap">Calculadora</button>
@@ -145,9 +146,12 @@
             </div>
             <div id="recurring-content" class="tab-content hidden">
     <h3 class="text-xl font-semibold mb-4">Gerenciar Itens Fixos</h3>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Aqui você pode ver e apagar os modelos de suas rendas e despesas que se repetem todo mês.</p>
-    
-    <h4 class="text-lg font-semibold mb-2">Rendas Fixas</h4>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Aqui você pode adicionar, ver e apagar os modelos de suas rendas e despesas que se repetem todo mês.</p>
+
+    <div class="flex justify-between items-center mb-2">
+        <h4 class="text-lg font-semibold">Rendas Fixas</h4>
+        <button id="add-recurring-income-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Renda Fixa</button>
+    </div>
     <div class="table-container mb-6">
         <table class="w-full text-sm text-left">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -155,7 +159,7 @@
                     <th class="px-6 py-3">Fonte</th>
                     <th class="px-6 py-3">Valor</th>
                     <th class="px-6 py-3">Tipo</th>
-                    <th class="px-6 py-3">Dia do Mês</th>
+                    <th class="px-6 py-3">Dia do Pagamento</th>
                     <th class="px-6 py-3 text-right no-print">Ações</th>
                 </tr>
             </thead>
@@ -163,7 +167,10 @@
         </table>
     </div>
 
-    <h4 class="text-lg font-semibold mb-2">Despesas Fixas</h4>
+    <div class="flex justify-between items-center mb-2">
+        <h4 class="text-lg font-semibold">Despesas Fixas</h4>
+        <button id="add-recurring-expense-btn" class="no-print bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Despesa Fixa</button>
+    </div>
     <div class="table-container">
         <table class="w-full text-sm text-left">
             <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
@@ -171,7 +178,7 @@
                     <th class="px-6 py-3">Descrição</th>
                     <th class="px-6 py-3">Valor</th>
                     <th class="px-6 py-3">Categoria</th>
-                    <th class="px-6 py-3">Dia do Mês</th>
+                    <th class="px-6 py-3">Dia do Vencimento</th>
                     <th class="px-6 py-3 text-right no-print">Ações</th>
                 </tr>
             </thead>
@@ -219,10 +226,7 @@
             
             <div class="flex items-end gap-3">
                  <div class="flex-grow"><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                 <div class="flex items-center pb-2 whitespace-nowrap">
-                    <input id="hour-is-holiday" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                    <label for="hour-is-holiday" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">Feriado</label>
-                </div>
+                 
             </div>
             
             <div class="flex items-end space-x-2">
@@ -412,10 +416,6 @@
                     <input type="text" id="income-amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <select id="income-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="fixed">Fixo</option><option value="variable">Variável</option><option value="extra">Extra</option></select>
                     <input type="date" id="income-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                     <div class="flex items-center pt-2">
-                         <input id="income-isRecurring" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                         <label for="income-isRecurring" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Renda Fixa (Repetir todo mês)</label>
-                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                         <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
@@ -441,14 +441,7 @@
                     <select id="expense-payment" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="debit">Débito</option><option value="credit">Crédito</option><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option></select>
                     <div id="installments-group" class="hidden"><label class="text-sm">Parcelas</label><input type="number" id="expense-installments" value="1" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
                     <input type="date" id="expense-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                     <div class="flex items-center pt-2">
-                        <input id="expense-paid-checkbox" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="expense-paid-checkbox" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Marcar como paga</label>
-                    </div>
-                    <div class="flex items-center pt-2">
-                        <input id="expense-isRecurring" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        <label for="expense-isRecurring" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">Despesa Fixa (Repetir todo mês)</label>
-                    </div>
+                   
                     <div class="flex justify-end gap-2 pt-2">
                         <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
                         <button id="save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>

@@ -83,13 +83,29 @@ export async function loadPeriodData(db, currentUser, startDate, endDate) {
 export async function saveItem(db, currentUser, type, itemData, id) {
     // Adiciona a lógica para corrigir o nome da coleção
     const collectionName = type === 'timeEntry' ? 'timeEntries' : `${type}s`;
+
+    // Objeto para traduzir os tipos para o português na mensagem de sucesso
+    const userFriendlyTypeNames = {
+        income: 'Renda',
+        expense: 'Despesa',
+        goal: 'Meta',
+        investment: 'Investimento',
+        timeEntry: 'Registro de horas',
+        recurringIncome: 'Renda fixa',
+        recurringExpense: 'Despesa fixa'
+    };
+    
+    // Usa o nome traduzido ou o nome original como fallback
+    const friendlyName = userFriendlyTypeNames[type] || type;
+
     try {
         if (id) {
             await db.collection('users').doc(currentUser.uid).collection(collectionName).doc(id).update(itemData);
         } else {
             await db.collection('users').doc(currentUser.uid).collection(collectionName).add(itemData);
         }
-        showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} salvo com sucesso!`, 'success');
+        // CORREÇÃO APLICADA AQUI: Usa a variável 'friendlyName'
+        showToast(`${friendlyName} salvo(a) com sucesso!`, 'success');
         return true;
     } catch (e) {
         console.error(`Erro ao salvar ${type}: `, e);
@@ -97,6 +113,7 @@ export async function saveItem(db, currentUser, type, itemData, id) {
         return false;
     }
 }
+
 
 export async function saveExpense(db, currentUser, expenseData, id, installments, updateAll) {
     try {
