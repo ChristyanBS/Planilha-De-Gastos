@@ -1,19 +1,38 @@
-.chart-container { height: 350px; position: relative; }
-.progress-bar { height: 20px; border-radius: 10px; overflow: hidden; background-color: #e5e7eb; }
-.dark .progress-bar { background-color: #374151; }
-.progress-fill { height: 100%; transition: width 0.5s ease; }
-.modal { transition: opacity 0.3s ease; }
-.table-container { overflow-x: auto; }
+/* --- ESTILOS GERAIS E DE COMPONENTES --- */
 
-.active-tab { 
-    border-color: #4f46e5 !important; 
-    color: #4f46e5 !important; 
-    font-weight: 600;
+.chart-container { 
+    height: 350px; 
+    position: relative; 
 }
-.dark .active-tab {
-    border-color: #818cf8 !important;
-    color: #c7d2fe !important;
+
+.progress-bar { 
+    height: 20px; 
+    border-radius: 10px; 
+    overflow: hidden; 
+    background-color: #e5e7eb; 
 }
+.dark .progress-bar { 
+    background-color: #374151; 
+}
+
+.progress-fill { 
+    height: 100%; 
+    transition: width 0.5s ease; 
+}
+
+.modal { 
+    transition: opacity 0.3s ease; 
+}
+
+.table-container { 
+    overflow-x: auto; 
+}
+
+html {
+    overflow-y: scroll;
+}
+
+/* --- ESTILOS DAS TABELAS E LINHAS --- */
 
 .income-fixed-row { background-color: rgba(22, 163, 74, 0.07) !important; }
 .income-variable-row { background-color: rgba(59, 130, 246, 0.07) !important; }
@@ -22,7 +41,6 @@
 .dark .income-variable-row { background-color: rgba(96, 165, 250, 0.1) !important; }
 .dark .income-extra-row { background-color: rgba(167, 139, 250, 0.1) !important; }
 
-/* Estilos para Despesas Pagas/Pendentes */
 .expense-paid {
     text-decoration: line-through;
     opacity: 0.6;
@@ -30,6 +48,7 @@
 .dark .expense-paid {
     opacity: 0.5;
 }
+
 .status-toggle {
     cursor: pointer;
     font-size: 1.25rem;
@@ -44,11 +63,18 @@
     color: #f87171; /* red-400 */
 }
 
+/* --- ESTILOS PARA BADGES DE PAGAMENTO --- */
 
 .badge {
-    padding: 3px 10px; border-radius: 12px; font-size: 0.7rem;
-    font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-    display: inline-block; text-align: center; min-width: 80px;
+    padding: 3px 10px; 
+    border-radius: 12px; 
+    font-size: 0.7rem;
+    font-weight: 600; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+    display: inline-block; 
+    text-align: center; 
+    min-width: 80px;
 }
 .badge-credit { background-color: #fee2e2; color: #b91c1c; }
 .badge-debit { background-color: #dbeafe; color: #1e40af; }
@@ -61,10 +87,9 @@
 .dark .badge-cash { background-color: #423d1d; color: #fde047; }
 .dark .badge-transfer { background-color: #2e104d; color: #d8b4fe; }
 
-html {
-    overflow-y: scroll;
-}
+/* --- NAVEGAÇÃO MOBILE --- */
 
+/* Menu lateral (agora acessado pelo botão 'Mais') */
 #mobile-menu {
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
@@ -73,7 +98,119 @@ html {
     transform: translateX(0);
 }
 
+/* Adiciona espaço no final do conteúdo principal para a barra inferior não cobrir nada */
+#main-container {
+    padding-bottom: 80px;
+}
+/* Remove o espaço em telas de desktop */
+@media (min-width: 768px) {
+    #main-container {
+        padding-bottom: 0;
+    }
+}
+
+/* Estilo para o ícone e texto do botão ativo na barra inferior */
+#bottom-nav .tab-btn.active-tab {
+    color: #4f46e5; /* Cor indigo-600 */
+}
+.dark #bottom-nav .tab-btn.active-tab {
+    color: #818cf8; /* Cor indigo-400 */
+}
+
+/* Remove a borda azul ao tocar no botão no iOS/Android */
+#bottom-nav .tab-btn, #bottom-nav #more-menu-btn {
+    -webkit-tap-highlight-color: transparent;
+}
+
+
+/* --- NAVEGAÇÃO DESKTOP (DROPDOWNS) --- */
+
+.nav-main-btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+}
+.dark .nav-main-btn {
+    color: #9ca3af;
+}
+.nav-main-btn:hover {
+    color: #4f46e5;
+    border-bottom-color: #a5b4fc;
+}
+.dark .nav-main-btn:hover {
+    color: #818cf8;
+    border-bottom-color: #818cf8;
+}
+
+/* Lógica do Dropdown (controlado via JS) */
+.dropdown-menu {
+    display: none; /* Escondido por padrão */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 180px;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 50;
+    border: 1px solid #e5e7eb;
+}
+.dark .dropdown-menu {
+    background-color: #1f2937;
+    border-color: #374151;
+}
+
+/* Classe para abrir o menu via JavaScript */
+.dropdown-menu.open {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+}
+.dropdown-item:hover {
+    background-color: #f3f4f6;
+}
+.dark .dropdown-item:hover {
+    background-color: #374151;
+}
+
+
+/* --- ESTILO PARA ABAS ATIVAS (UNIFICADO) --- */
+
+/* Para os itens de dropdown e botões principais de navegação */
+.dropdown-menu .tab-btn.active-tab, .nav-main-btn.active-tab {
+    border-color: #4f46e5 !important; 
+    color: #4f46e5 !important; 
+    font-weight: 600;
+}
+.dark .dropdown-menu .tab-btn.active-tab, .dark .nav-main-btn.active-tab {
+    border-color: #818cf8 !important;
+    color: #c7d2fe !important;
+}
+
+#main-container {
+    width: 100%;
+    max-width: 1280px; /* << Largura máxima do conteúdo no desktop. Pode ajustar este valor! */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+/* --- ESTILOS DE IMPRESSÃO --- */
+
 @media print {
-    .no-print { display: none !important; }
-    body { background-color: white !important; color: black !important; }
+    .no-print { 
+        display: none !important; 
+    }
+    body { 
+        background-color: white !important; 
+        color: black !important; 
+    }
 }

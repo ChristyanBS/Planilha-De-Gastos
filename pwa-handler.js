@@ -14,22 +14,18 @@ export function initPwaHandlers() {
         // Mostra nosso botão de instalação customizado
         if (installButton) {
             installButton.classList.remove('hidden');
-            console.log('Botão de instalação pronto para ser exibido.');
         }
     });
 
     // O que fazer quando o nosso botão de instalação é clicado
     if (installButton) {
         installButton.addEventListener('click', async () => {
-            if (!deferredPrompt) {
-                return;
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                installButton.classList.add('hidden');
             }
-            // Mostra o prompt de instalação nativo
-            deferredPrompt.prompt();
-            // Limpa o evento, pois ele só pode ser usado uma vez
-            deferredPrompt = null;
-            // Esconde o botão após o clique
-            installButton.classList.add('hidden');
         });
     }
 

@@ -72,19 +72,34 @@ export async function loadPeriodData(db, currentUser, startDate, endDate) {
     };
 
     try {
-        const [incomes, expenses, timeEntries] = await Promise.all([
+        // CORREÇÃO: Removemos 'timeEntries' desta busca
+        const [incomes, expenses] = await Promise.all([
             loadFilteredCollection('incomes'),
-            loadFilteredCollection('expenses'),
-            loadFilteredCollection('timeEntries')
+            loadFilteredCollection('expenses')
         ]);
-        return { incomes, expenses, timeEntries };
+        // CORREÇÃO: Retornamos apenas os dados financeiros
+        return { incomes, expenses };
     } catch (error) {
         console.error("Erro ao carregar dados do período:", error);
         showToast("Falha ao carregar os dados do período.", "error");
-        return { incomes: [], expenses: [], timeEntries: [] };
+        return { incomes: [], expenses: [] };
     }
 }
 
+export async function loadTimeEntriesForPeriod(db, currentUser, startDate, endDate) {
+    const userDocRef = db.collection('users').doc(currentUser.uid);
+    try {
+        const query = userDocRef.collection('timeEntries')
+            .where('date', '>=', startDate.toISOString().split('T')[0])
+            .where('date', '<=', endDate.toISOString().split('T')[0]);
+        const snapshot = await query.get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Erro ao carregar registros de horas:", error);
+        showToast("Falha ao carregar os registros de horas.", "error");
+        return [];
+    }
+}
 
 // --- FUNÇÕES DE ESCRITA (CREATE / UPDATE / DELETE) ---
 
