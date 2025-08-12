@@ -1,12 +1,12 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v7';
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v7';
-
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v8';
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v8';
 // Lista de arquivos essenciais para o funcionamento offline
 const urlsToCache = [
   './',
   'index.html',
   'login.html',
   'style.css',
+  'manifest.json',
   'auth.js',
   'main.js',
   'ui.js',
@@ -14,9 +14,10 @@ const urlsToCache = [
   'firestore.js',
   'calculator.js',
   'utils.js',
-  'manifest.json',
+  'pwa-handler.js',
   'images/icons/icon-192x192.png',
-  'images/icons/icon-512x512.png'
+  'images/icons/icon-512x512.png',
+  'images/icons/favicon-32x32.png'
 ];
 
 // Evento de Instalação: Salva os arquivos estáticos principais no cache
@@ -43,28 +44,22 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-// Evento de Fetch: Intercepta requisições com a estratégia Stale-While-Revalidate
+// Evento de Fetch: Intercepta requisições
 self.addEventListener('fetch', event => {
-  // Ignora requisições para o Firebase para não interferir na sincronização em tempo real
+  // Ignora requisições para o Firebase
   if (event.request.url.includes('firebase') || event.request.url.includes('googleapis')) {
     return;
   }
 
   event.respondWith(
-    caches.open(CACHE_NOME_DINAMICO).then(cache => {
-      // 1. Tenta pegar a resposta do cache
-      return cache.match(event.request).then(cachedResponse => {
-        // 2. Ao mesmo tempo, busca na rede para atualizar o cache (revalidate)
-        const fetchPromise = fetch(event.request).then(networkResponse => {
-          // Se a busca na rede for bem-sucedida, atualiza o cache com a nova versão
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
+    caches.match(event.request)
+      .then(response => {
+        return response || fetch(event.request).then(fetchRes => {
+          return caches.open(CACHE_NOME_DINAMICO).then(cache => {
+            cache.put(event.request.url, fetchRes.clone());
+            return fetchRes;
+          });
         });
-
-        // 3. Retorna a resposta do cache imediatamente se existir (stale),
-        // ou espera a resposta da rede se for a primeira vez (cache miss).
-        return cachedResponse || fetchPromise;
-      });
-    })
+      })
   );
 });
