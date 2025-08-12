@@ -1,5 +1,5 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v6';
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v6';
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v7';
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v7';
 
 // Lista de arquivos essenciais para o funcionamento offline
 const urlsToCache = [

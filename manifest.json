@@ -1,23 +1,39 @@
 {
   "name": "Minha Planilha Financeira",
   "short_name": "Finanças",
-  "start_url": "index.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#4f46e5",
   "orientation": "portrait-primary",
-"icons": [
-  {
-    "src": "images/icons/icon-192x192.png",
-    "type": "image/png",
-    "sizes": "192x192",
-    "purpose": "any maskable"
-  },
-  {
-    "src": "images/icons/icon-512x512.png",
-    "type": "image/png",
-    "sizes": "512x512",
-    "purpose": "any maskable"
-  }
-]
+  "icons": [
+    {
+      "src": "/images/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nova Despesa",
+      "short_name": "Despesa",
+      "description": "Registrar uma nova despesa",
+      "url": "/index.html?action=add-expense",
+      "icons": [{ "src": "/images/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Nova Renda",
+      "short_name": "Renda",
+      "description": "Registrar uma nova renda",
+      "url": "/index.html?action=add-income",
+      "icons": [{ "src": "/images/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }
