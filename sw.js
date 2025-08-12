@@ -15,8 +15,8 @@ const urlsToCache = [
   'calculator.js',
   'utils.js',
   'manifest.json',
-  'images/icon-192x192.png',
-  'images/icon-512x512.png'
+  'images/icons/icon-192x192.png',
+  'images/icons/icon-512x512.png'
 ];
 
 // Evento de Instalação: Salva os arquivos estáticos principais no cache

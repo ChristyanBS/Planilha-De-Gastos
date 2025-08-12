@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planilha Financeira Pessoal</title>
-    <link rel="icon" type="image/png" href="/images/favicon-32x32.png">
-    <link rel="apple-touch-icon" href="/images/icon-192x192.png">
+    <link rel="icon" type="image/png" href="/images/icons/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -82,6 +82,26 @@
     <p class="text-sm">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
 </div>
 </header>
+
+        <div id="install-prompt-banner" class="hidden no-print fixed bottom-0 left-0 right-0 w-full bg-indigo-600 dark:bg-indigo-700 text-white p-4 shadow-lg z-50 transform translate-y-full transition-transform duration-500 ease-in-out">
+    <div class="container mx-auto flex items-center justify-between">
+        <div class="flex items-center">
+            <img src="/images/icons/icon-192x192.png" alt="App Icon" class="w-10 h-10 mr-4 rounded-lg">
+            <div>
+                <h4 class="font-bold">Instale nosso aplicativo!</h4>
+                <p class="text-sm">Tenha acesso rápido e offline diretamente da sua tela inicial.</p>
+            </div>
+        </div>
+        <div class="flex items-center">
+            <button id="install-app-btn" class="bg-white hover:bg-gray-200 text-indigo-700 font-bold py-2 px-4 rounded-lg transition-colors">
+                Instalar
+            </button>
+            <button id="close-install-banner-btn" class="ml-4 text-2xl opacity-80 hover:opacity-100" title="Fechar">
+                &times;
+            </button>
+        </div>
+    </div>
+</div>
 
         <section class="mb-8">
             <div class="flex justify-between items-center mb-4">

@@ -5,7 +5,7 @@ import * as db from './firestore.js';
 import * as utils from './utils.js';
 import * as core from './core.js';
 import * as calculator from './calculator.js';
-import { initPwaHandlers } from './pwa-handler.js';
+import { initPwaHandlers, checkAndShowInstallBanner } from './pwa-handler.js';
 
 // --- INICIALIZAÇÃO E ESTADO GLOBAL ---
 const firebaseConfig = {
@@ -410,6 +410,7 @@ function handleGenerateReport() {
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
     const dropdownButtons = document.querySelectorAll('.dropdown .nav-main-btn');
+ 
 
 dropdownButtons.forEach(button => {
     button.addEventListener('click', (event) => {
@@ -530,6 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             setupEventListeners();
             document.querySelector('.tab-btn[data-tab="income"]').click();
+             initPwaHandlers();
+             checkAndShowInstallBanner();
         } else {
             window.location.href = 'login.html';
         }
