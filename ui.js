@@ -1,5 +1,3 @@
-// Arquivo: ui.js (VERSÃO FINAL E CORRIGIDA)
-
 import { formatCurrency, formatMinutesToHours, parseBrazilianNumber } from './utils.js';
 
 let reportChartInstance;
@@ -115,70 +113,25 @@ export function closeModal(modalId) {
 }
 
 export function showEditModal(type, item, state) {
-    // --- LÓGICA CORRIGIDA E ADICIONADA ---
-    // Adiciona um tratamento especial para o modal de horas, que possui campos diferentes.
-    if (type === 'timeEntry') {
-        const modalId = 'hours-modal'; // Presume-se que o ID do seu modal de horas seja 'hours-modal'
-        const modal = document.getElementById(modalId);
-        if (!modal) {
-            console.error(`Erro Crítico: O modal com ID '${modalId}' não foi encontrado no HTML.`);
-            showToast("O formulário de horas não pôde ser aberto.", "error");
-            return;
-        }
-        
-        const saveBtn = document.getElementById('save-hours'); // Presume-se que o botão de salvar tenha o ID 'save-hours'
-        const modalTitle = modal.querySelector('h3');
-
-        // Limpa todos os campos do formulário de horas
-        modal.querySelectorAll('input').forEach(el => {
-            if (el.type === 'checkbox') el.checked = false;
-            else el.value = '';
-        });
-
-        if (item) {
-            // Se estiver editando um item existente
-            saveBtn.dataset.id = item.id;
-            saveBtn.textContent = 'Atualizar';
-            modalTitle.textContent = 'Editar Registro de Horas';
-            // Preenche os campos com os dados do item
-            for (const key in item) {
-                const input = document.getElementById(`hours-${key}`); // Ex: hours-date, hours-entry
-                if (input) {
-                    if (input.type === 'checkbox') {
-                        input.checked = item[key];
-                    } else {
-                        input.value = item[key];
-                    }
-                }
-            }
-        } else {
-            // Se estiver adicionando um novo item
-            saveBtn.removeAttribute('data-id');
-            saveBtn.textContent = 'Salvar';
-            modalTitle.textContent = 'Adicionar Registro de Horas';
-            // Define a data atual como padrão
-            const dateField = document.getElementById('hours-date');
-            if (dateField) {
-               dateField.value = new Date().toISOString().split('T')[0];
-            }
-        }
-        openModal(modalId); // Abre o modal de horas
-        return; // Impede que o resto da função (lógica antiga) seja executado
-    }
-    
-    // --- LÓGICA ORIGINAL (Mantida para os outros tipos de item) ---
     const modalType = type.replace('recurring', '').toLowerCase();
     const modalId = `${modalType}-modal`;
     
-    const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) return;
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    // --- LINHA CORRIGIDA ABAIXO ---
+    // Em vez de buscar pelo ID, buscamos pela classe dentro do modal correto.
+    const saveBtn = modal.querySelector('.save-modal-btn');
+    // --- FIM DA CORREÇÃO ---
+    
+    const formContainer = modal.querySelector('div > div');
+    if (!formContainer || !saveBtn) return;
 
     formContainer.querySelectorAll('input, select').forEach(el => {
         if (el.type === 'checkbox') el.checked = false; else el.value = '';
     });
 
-    const saveBtn = document.getElementById(`save-${modalType}`);
-    const modalTitle = document.getElementById(modalId).querySelector('h3');
+    const modalTitle = modal.querySelector('h3');
     const ptTerms = { income: 'Renda', expense: 'Despesa', goal: 'Meta', investment: 'Investimento', recurringIncome: 'Renda Fixa', recurringExpense: 'Despesa Fixa' };
     
     const dateField = document.getElementById(`${modalType}-date`);
@@ -188,7 +141,12 @@ export function showEditModal(type, item, state) {
     if (type.startsWith('recurring')) {
         if (dateField) {
             dateField.style.display = 'none';
-            const dayOfMonthFieldHTML = `...`; // (código do campo de dia do mês)
+            const dayOfMonthFieldHTML = `
+                <div id="${modalType}-dayOfMonth-group">
+                    <label for="${modalType}-dayOfMonth" class="block text-sm">Dia do Vencimento/Pagamento</label>
+                    <input type="number" id="${modalType}-dayOfMonth" name="dayOfMonth" min="1" max="31" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Ex: 5">
+                </div>
+            `;
             dateField.insertAdjacentHTML('beforebegin', dayOfMonthFieldHTML);
         }
     } else {
@@ -199,7 +157,10 @@ export function showEditModal(type, item, state) {
 
     if (modalType === 'expense') {
         populateCategoryDropdown(state.settings.expenseCategories);
-        document.getElementById('installments-group').style.display = type.startsWith('recurring') ? 'none' : 'block';
+        const installmentsGroup = document.getElementById('installments-group');
+        if (installmentsGroup) {
+           installmentsGroup.style.display = type.startsWith('recurring') ? 'none' : 'block';
+        }
     }
 
     if (item) {
@@ -435,7 +396,7 @@ export function updateIncomeTable(incomes, callbacks) {
     createTable('incomes-table', incomes, item => {
         const row = document.createElement('tr');
         // Adiciona um ícone se o item for fixo (recorrente)
-        const recurringIcon = item.isRecurring ? '<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>' : '';
+        const recurringIcon = item.isRecurring ? `<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>` : '';
 
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap">${item.source}${recurringIcon}</td>
@@ -455,14 +416,12 @@ export function updateIncomeTable(incomes, callbacks) {
     document.querySelectorAll('#incomes-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
 }
 
-// SUBSTITUA A FUNÇÃO updateExpensesTable EM ui.js PELA VERSÃO ABAIXO
-
 export function updateExpensesTable(expenses, categories, callbacks) {
     createTable('expenses-table', expenses, item => {
         const row = document.createElement('tr');
         if (item.isPaid) row.classList.add('expense-paid');
         // Adiciona um ícone se o item for fixo (recorrente)
-        const recurringIcon = item.isRecurring ? '<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>' : '';
+        const recurringIcon = item.isRecurring ? `<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>` : '';
 
         row.innerHTML = `
             <td class="px-2 py-4 whitespace-nowrap text-center no-print">
