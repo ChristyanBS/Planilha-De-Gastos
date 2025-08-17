@@ -184,20 +184,22 @@ async function handleSaveItem(type) {
     const baseType = type.replace('recurring', '').toLowerCase();
     const modalId = `${baseType}-modal`;
     
-    const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) return;
-
-    const saveBtn = document.getElementById(`save-${type}`);
-    const id = saveBtn ? saveBtn.dataset.id : null;
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    
+    const saveBtn = modal.querySelector('.save-modal-btn');
+    if (!saveBtn) return;
+    
+    const id = saveBtn.dataset.id;
     
     const itemData = {};
-    const inputs = formContainer.querySelectorAll('input, select');
+    const inputs = modal.querySelectorAll('input, select');
     inputs.forEach(input => {
-        if (!input.id || !input.id.includes(baseType)) return;
-        const key = input.id.replace(`${baseType}-`, '');
+        if (!input.name) return; // Usar o atributo 'name' é mais robusto
+        const key = input.name;
         if (input.type === 'checkbox') {
             itemData[key] = input.checked;
-        } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].some(k => input.id.includes(k))) {
+        } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].includes(key)) {
             itemData[key] = utils.parseBrazilianNumber(input.value) || parseInt(input.value, 10) || 0;
         } else {
             itemData[key] = input.value.trim();
@@ -411,31 +413,30 @@ function handleGenerateReport() {
 function setupEventListeners() {
     const dropdownButtons = document.querySelectorAll('.dropdown .nav-main-btn');
  
+    dropdownButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation(); // Impede que o clique feche o menu imediatamente
+            const parentDropdown = button.parentElement;
+            const menu = parentDropdown.querySelector('.dropdown-menu');
 
-dropdownButtons.forEach(button => {
-    button.addEventListener('click', (event) => {
-        event.stopPropagation(); // Impede que o clique feche o menu imediatamente
-        const parentDropdown = button.parentElement;
-        const menu = parentDropdown.querySelector('.dropdown-menu');
+            // Fecha todos os outros menus antes de abrir o novo
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                if (m !== menu) {
+                    m.classList.remove('open');
+                }
+            });
 
-        // Fecha todos os outros menus antes de abrir o novo
-        document.querySelectorAll('.dropdown-menu').forEach(m => {
-            if (m !== menu) {
-                m.classList.remove('open');
-            }
+            // Abre ou fecha o menu atual
+            menu.classList.toggle('open');
         });
-
-        // Abre ou fecha o menu atual
-        menu.classList.toggle('open');
     });
-});
 
-// Fecha os menus se o usuário clicar em qualquer outro lugar da tela
-window.addEventListener('click', () => {
-    document.querySelectorAll('.dropdown-menu').forEach(menu => {
-        menu.classList.remove('open');
+    // Fecha os menus se o usuário clicar em qualquer outro lugar da tela
+    window.addEventListener('click', () => {
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.classList.remove('open');
+        });
     });
-});
     initPwaHandlers();
 
     // --- Listeners do Cabeçalho e Ações Gerais ---
@@ -447,7 +448,8 @@ window.addEventListener('click', () => {
     document.getElementById('reset-btn').addEventListener('click', handleResetMonth);
     document.getElementById('clear-all-btn').addEventListener('click', handleClearAll);
     document.getElementById('print-btn').addEventListener('click', () => window.print());
-    document.getElementById('hamburger-btn').addEventListener('click', ui.toggleMobileMenu);
+    
+    // --- REMOVIDO O LISTENER DO BOTÃO HAMBÚRGUER ---
     document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
     document.getElementById('more-menu-btn').addEventListener('click', ui.toggleMobileMenu);
 
@@ -480,7 +482,10 @@ window.addEventListener('click', () => {
     // --- Listeners Dinâmicos para os Modais de Salvar ---
     const modalTypesForSetup = ['income', 'expense', 'goal', 'investment'];
     modalTypesForSetup.forEach(baseType => {
-        const saveBtn = document.getElementById(`save-${baseType}`);
+        const modal = document.getElementById(`${baseType}-modal`);
+        if (!modal) return;
+        
+        const saveBtn = modal.querySelector('.save-modal-btn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 const currentTypeToSave = saveBtn.id.replace('save-', '');
