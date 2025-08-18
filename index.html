@@ -40,15 +40,15 @@
     <div id="main-container" class="container mx-auto px-4 py-8">
         
         <header class="mb-8">
-    <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0 mb-4">
-        
-        <div class="relative flex justify-center items-center py-4">
-    
-    <div class="text-center">
-        <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
-        <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
-        <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
-    </div>
+            <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0 mb-4">
+                
+                <div class="relative flex justify-center items-center py-4">
+                    <div class="text-center">
+                        <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
+                        <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
+                        <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
+                    </div>
+                </div>
         </div> <div class="no-print flex items-center space-x-2">
             
             <button id="privacy-toggle-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-full flex items-center shadow-sm" title="Ocultar/Mostrar Valores">
@@ -492,13 +492,13 @@
                 <button id="close-goal-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
                 <h3 class="text-lg font-bold mb-4">Adicionar Meta</h3>
                 <div class="space-y-3">
-                    <input type="text" id="goal-name" placeholder="Nome da Meta" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="goal-target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="goal-current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" id="goal-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="goal-name" name="name" placeholder="Nome da Meta" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="goal-target" name="target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="goal-current" name="current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" name="deadline" id="goal-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <div class="flex justify-end gap-2 pt-2">
-                        <button id="cancel-goal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button id="save-goal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
+                        <button type="button" id="cancel-goal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                        <button type="button" id="save-goal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
                     </div>
                 </div>
             </div>
@@ -508,14 +508,21 @@
                 <button id="close-investment-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
                 <h3 class="text-lg font-bold mb-4">Adicionar Investimento</h3>
                 <div class="space-y-3">
-                    <input type="text" id="investment-description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="investment-amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <select id="investment-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="treasury">Tesouro Direto</option><option value="cdb">CDB/LCI/LCA</option><option value="stocks">Ações</option><option value="fiis">FIIs</option><option value="funds">Fundos</option><option value="savings">Poupança</option></select>
-                    <input type="text" id="investment-yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="date" id="investment-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="investment-description" name="description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="investment-amount" name="amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <select id="investment-type" name="type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                        <option value="treasury">Tesouro Direto</option>
+                        <option value="cdb">CDB/LCI/LCA</option>
+                        <option value="stocks">Ações</option>
+                        <option value="fiis">FIIs</option>
+                        <option value="funds">Fundos</option>
+                        <option value="savings">Poupança</option>
+                    </select>
+                    <input type="text" id="investment-yield" name="yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="date" id="investment-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <div class="flex justify-end gap-2 pt-2">
-                        <button id="cancel-investment" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button id="save-investment" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
+                        <button type="button" id="cancel-investment" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                        <button type="button" id="save-investment" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
                     </div>
                 </div>
             </div>
