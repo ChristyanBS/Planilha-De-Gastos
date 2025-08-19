@@ -183,35 +183,57 @@ async function handleDeleteItem(type, id) {
 async function handleSaveItem(type) {
     const baseType = type.replace('recurring', '').toLowerCase();
     const modalId = `${baseType}-modal`;
-    
-    const formContainer = document.getElementById(modalId)?.querySelector('div > div');
-    if (!formContainer) return;
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
 
-    const saveBtn = document.getElementById(`save-${type}`);
+    const saveBtn = modal.querySelector('.save-modal-btn');
     const id = saveBtn ? saveBtn.dataset.id : null;
     
     const itemData = {};
-    const inputs = formContainer.querySelectorAll('input, select');
+    const inputs = modal.querySelectorAll('input[name], select[name]');
     inputs.forEach(input => {
-        if (!input.id || !input.id.includes(baseType)) return;
-        const key = input.id.replace(`${baseType}-`, '');
+        const key = input.name;
+        if (!key) return;
         if (input.type === 'checkbox') {
             itemData[key] = input.checked;
-        } else if (input.type === 'number' || ['amount', 'target', 'yield', 'current', 'dayOfMonth'].some(k => input.id.includes(k))) {
-            itemData[key] = utils.parseBrazilianNumber(input.value) || parseInt(input.value, 10) || 0;
+        } else if (['amount', 'target', 'yield', 'current', 'dayOfMonth'].includes(key)) {
+            itemData[key] = utils.parseBrazilianNumber(input.value) || 0;
         } else {
             itemData[key] = input.value.trim();
         }
     });
 
-    if ((type === 'recurringIncome' || type === 'recurringExpense') && !id) {
-        itemData.createdAt = new Date().toISOString().split('T')[0];
+    // Validação para Rendas
+    if (type === 'income' || type === 'recurringIncome') {
+        if (!itemData.source) {
+            return ui.showToast('Por favor, preencha a fonte da renda.', 'error');
+        }
+        if (itemData.amount <= 0) {
+            return ui.showToast('O valor da renda deve ser maior que zero.', 'error');
+        }
     }
-    
+
+    // --- NOVO CÓDIGO: VALIDAÇÃO PARA DESPESAS ---
+    if (type === 'expense' || type === 'recurringExpense') {
+        // Verifica se a descrição está vazia
+        if (!itemData.description) {
+            return ui.showToast('Por favor, preencha a descrição da despesa.', 'error');
+        }
+        // Verifica se o valor é maior que zero
+        if (itemData.amount <= 0) {
+            return ui.showToast('O valor da despesa deve ser maior que zero.', 'error');
+        }
+        // Verifica se uma categoria foi selecionada
+        if (!itemData.category) {
+            return ui.showToast('Por favor, selecione uma categoria.', 'error');
+        }
+    }
+    // --- FIM DA VALIDAÇÃO PARA DESPESAS ---
+
     let saved = false;
-    if (type === 'expense') {
+    if (type === 'expense' && !id) {
         const installments = parseInt(document.getElementById('expense-installments').value) || 1;
-        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, id, installments);
+        saved = await db.saveExpense(firestoreDB, state.currentUser, itemData, null, installments);
     } else {
         saved = await db.saveItem(firestoreDB, state.currentUser, type, itemData, id);
     }
@@ -248,7 +270,8 @@ async function handleSaveTimeEntry() {
         breakStart: document.getElementById('hour-break-start').value,
         breakEnd: document.getElementById('hour-break-end').value,
         exit: document.getElementById('hour-exit').value,
-        isHoliday: false // BUG CORRIGIDO: Removida a busca por 'hour-is-holiday' que não existe
+        // CORREÇÃO: Lê o valor da nova caixa de seleção
+        isHoliday: document.getElementById('hour-is-holiday').checked
     };
 
     if (!itemData.date || !itemData.entry || !itemData.exit) {
@@ -262,13 +285,18 @@ async function handleSaveTimeEntry() {
         document.getElementById('add-hour-entry-btn').removeAttribute('data-id');
         document.getElementById('add-hour-entry-btn').textContent = 'Adicionar';
         document.getElementById('cancel-hour-edit-btn').classList.add('hidden');
-        document.querySelector('#hours-content form').reset(); // Maneira mais simples de limpar
+        
+        // Limpa os campos do formulário de horas
         document.getElementById('hour-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('hour-entry').value = '';
+        document.getElementById('hour-break-start').value = '';
+        document.getElementById('hour-break-end').value = '';
+        document.getElementById('hour-exit').value = '';
+        document.getElementById('hour-is-holiday').checked = false; // Limpa a caixinha também
 
         await updateDashboard(); // Atualiza a UI
     }
 }
-
 async function handleExpenseStatusToggle(id) {
     const expense = state.expenses.find(e => e.id === id);
     if (expense) {

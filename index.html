@@ -39,45 +39,40 @@
     </div>
     <div id="main-container" class="container mx-auto px-4 py-8">
         
-        <header class="mb-8">
-            <div class="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0 mb-4">
-                
-                <div class="relative flex justify-center items-center py-4">
-                    <div class="text-center">
-                        <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
-                        <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
-                        <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
-                    </div>
-                </div>
-        </div> <div class="no-print flex items-center space-x-2">
-            
+       <header class="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+    <div class="flex flex-col items-center text-center space-y-4">
+    
+        <div>
+            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
+            <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
+            <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
+        </div>
+        
+        <div class="no-print flex items-center space-x-2">
             <button id="privacy-toggle-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-full flex items-center shadow-sm" title="Ocultar/Mostrar Valores">
-                 <i class="fas fa-eye"></i>
+                    <i class="fas fa-eye"></i>
             </button>
             <button id="theme-toggle-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-full flex items-center shadow-sm">
-                <i class="fas fa-moon mr-2"></i>
-                <span id="theme-toggle-text" class="hidden sm:inline">Modo Escuro</span>
+                    <i class="fas fa-moon mr-2"></i>
+                    <span id="theme-toggle-text" class="hidden sm:inline">Modo Escuro</span>
             </button>
             <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-full flex items-center shadow-sm">
-                <i class="fas fa-sign-out-alt mr-2"></i>
-                <span class="hidden sm:inline">Sair</span>
+                    <i class="fas fa-sign-out-alt mr-2"></i>
+                    <span class="hidden sm:inline">Sair</span>
             </button>
         </div>
     </div>
 
-    <div class="flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-2 no-print px-4 sm:px-0">
-        <button id="install-pwa-btn" class="hidden no-print bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-download mr-2"></i>Instalar App</button>
+    <div class="mt-6 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-2 no-print px-4 sm:px-0">
         <button id="print-btn" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-print mr-2"></i> Imprimir</button>
         <button id="reset-btn" class="w-full sm:w-auto bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/70 text-rose-800 dark:text-rose-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-redo mr-2"></i> Reiniciar Mês</button>
         <button id="clear-all-btn" class="w-full sm:w-auto bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900/70 text-red-800 dark:text-red-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i> Limpar Tudo</button>
     </div>
-    <div class="no-print flex items-center space-x-2 no-print px-4 sm:px-0">
-    </div>
 
-<div id="ios-install-banner" class="hidden no-print mt-4 bg-blue-50 dark:bg-blue-900/60 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg text-center">
-    <p class="font-bold">Instale nosso App no seu iPhone!</p>
-    <p class="text-sm">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
-</div>
+    <div id="ios-install-banner" class="hidden no-print mt-4 bg-blue-50 dark:bg-blue-900/60 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg text-center">
+        <p class="font-bold">Instale nosso App no seu iPhone!</p>
+        <p class="text-sm">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
+    </div>
 </header>
 
         <div id="install-prompt-banner" class="hidden no-print fixed bottom-0 left-0 right-0 w-full bg-indigo-600 dark:bg-indigo-700 text-white p-4 shadow-lg z-50 transform translate-y-full transition-transform duration-500 ease-in-out">
@@ -251,27 +246,26 @@
     <h3 class="text-xl font-semibold mb-4">Registro de Horas Trabalhadas</h3>
     <p id="hours-period-display" class="text-sm text-center text-gray-500 dark:text-gray-400 -mt-2 mb-4"></p>
     <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
-            
-            <div class="md:col-span-2">
-                <label for="hour-date" class="block text-sm font-medium">Data</label>
-                <input type="date" id="hour-date" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            </div>
-            
-            <div><label for="hour-entry" class="block text-sm font-medium">Entrada</label><input type="time" id="hour-entry" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-            <div><label for="hour-break-start" class="block text-sm font-medium">Início Intervalo</label><input type="time" id="hour-break-start" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-            <div><label for="hour-break-end" class="block text-sm font-medium">Fim Intervalo</label><input type="time" id="hour-break-end" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-            
-            <div class="flex items-end gap-3">
-                 <div class="flex-grow"><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                 
-            </div>
-            
-            <div class="flex items-end space-x-2">
-                <button id="add-hour-entry-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i>Adicionar</button>
-                <button id="cancel-hour-edit-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">Cancelar</button>
-            </div>
-        </div>
+       <div class="grid grid-cols-1 md:grid-cols-8 gap-4 items-end">
+    <div class="md:col-span-2">
+        <label for="hour-date" class="block text-sm font-medium">Data</label>
+        <input type="date" id="hour-date" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+    </div>
+    <div><label for="hour-entry" class="block text-sm font-medium">Entrada</label><input type="time" id="hour-entry" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+    <div><label for="hour-break-start" class="block text-sm font-medium">Início Intervalo</label><input type="time" id="hour-break-start" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+    <div><label for="hour-break-end" class="block text-sm font-medium">Fim Intervalo</label><input type="time" id="hour-break-end" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+    <div><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+    
+    <div class="flex items-center justify-start pb-2">
+        <input id="hour-is-holiday" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+        <label for="hour-is-holiday" class="ml-2 block text-sm">É 100%?</label>
+    </div>
+
+    <div class="flex items-end space-x-2">
+        <button id="add-hour-entry-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i>Adicionar</button>
+        <button id="cancel-hour-edit-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">Cancelar</button>
+    </div>
+</div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
         <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Horas Trabalhadas (Período)</p><p id="total-worked-hours" class="font-bold text-lg">0h 0m</p></div>
@@ -336,7 +330,7 @@
                 <h3 class="text-xl font-semibold mb-4">Calculadora de Salário Líquido</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-4">
-                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" id="calc-base-salary" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 3500,00"></div>
+                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" inputmode="decimal" id="calc-base-salary" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 3500,00"></div>
                         <div class="grid grid-cols-2 gap-4">
                             <div><label for="calc-workload" class="block text-sm font-medium">Carga Horária (mês)</label><input type="number" id="calc-workload" value="220" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
                             <div><label for="calc-dependents" class="block text-sm font-medium">Dependentes</label><input type="number" id="calc-dependents" value="0" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
@@ -350,13 +344,13 @@
                             <div>
                                 <h4 class="font-semibold mb-2">Outros Proventos</h4>
                                 <div id="custom-proventos-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" id="new-provento-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
+                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" inputmode="decimal" id="new-provento-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
                                 <button id="add-provento-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Provento</button>
                             </div>
                             <div>
                                 <h4 class="font-semibold mb-2">Outros Descontos</h4>
                                 <div id="custom-discounts-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" id="new-discount-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
+                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" inputmode="decimal" id="new-discount-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
                                 <button id="add-discount-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Desconto</button>
                             </div>
                         </div>
@@ -446,55 +440,75 @@
         </div>
 
         <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button id="close-income-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-                <h3 class="text-lg font-bold mb-4">Adicionar Renda</h3>
-                <div class="space-y-3">
-                    <input type="text" id="income-source" placeholder="Fonte da Renda" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="income-amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <select id="income-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="fixed">Fixo</option><option value="variable">Variável</option><option value="extra">Extra</option></select>
-                    <input type="date" id="income-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
-                    </div>
-                </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+        <button id="close-income-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+        <h3 class="text-lg font-bold mb-4">Adicionar Renda</h3>
+        <div class="space-y-3">
+            <input type="text" id="income-source" name="source" placeholder="Fonte da Renda" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <input type="text" inputmode="decimal" id="income-amount" name="amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <select id="income-type" name="type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                <option value="fixed">Fixo</option>
+                <option value="variable">Variável</option>
+                <option value="extra">Extra</option>
+            </select>
+            
+            <input type="date" id="income-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
             </div>
         </div>
+    </div>
+</div>
         <div id="expense-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button id="close-expense-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-                <h3 class="text-lg font-bold mb-4">Adicionar Despesa</h3>
-                <div class="space-y-3">
-                    <input type="text" id="expense-description" placeholder="Descrição" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="expense-amount" placeholder="Valor" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <div class="flex gap-2 items-end">
-                        <select id="expense-category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></select>
-                        <button id="new-category-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center" title="Nova Categoria"><i class="fas fa-plus"></i></button>
-                    </div>
-                    <div id="new-category-input-group" class="hidden flex gap-2">
-                        <input type="text" id="new-category-name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome da Nova Categoria">
-                        <button id="save-new-category-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
-                    </div>
-                    <select id="expense-payment" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"><option value="debit">Débito</option><option value="credit">Crédito</option><option value="pix">PIX</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option></select>
-                    <div id="installments-group" class="hidden"><label class="text-sm">Parcelas</label><input type="number" id="expense-installments" value="1" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-                    <input type="date" id="expense-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                   
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button id="save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
-                    </div>
-                </div>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+        <button id="close-expense-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+        <h3 class="text-lg font-bold mb-4">Adicionar Despesa</h3>
+        <div class="space-y-3">
+            <input type="text" id="expense-description" name="description" placeholder="Descrição" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <input type="text" inputmode="decimal" id="expense-amount" name="amount" placeholder="Valor" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <div class="flex gap-2 items-end">
+                <select id="expense-category" name="category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></select>
+                <button id="new-category-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center" title="Nova Categoria"><i class="fas fa-plus"></i></button>
+            </div>
+
+            <div id="new-category-input-group" class="hidden flex gap-2">
+                <input type="text" id="new-category-name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome da Nova Categoria">
+                <button id="save-new-category-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
+            </div>
+
+            <select id="expense-payment" name="payment" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                <option value="debit">Débito</option>
+                <option value="credit">Crédito</option>
+                <option value="pix">PIX</option>
+                <option value="cash">Dinheiro</option>
+                <option value="transfer">Transferência</option>
+            </select>
+
+            <div id="installments-group" class="hidden"><label class="text-sm">Parcelas</label><input type="number" id="expense-installments" value="1" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
+            
+            <input type="date" id="expense-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                <button id="save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
             </div>
         </div>
+    </div>
+</div>
         <div id="goal-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
                 <button id="close-goal-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
                 <h3 class="text-lg font-bold mb-4">Adicionar Meta</h3>
                 <div class="space-y-3">
                     <input type="text" id="goal-name" name="name" placeholder="Nome da Meta" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="goal-target" name="target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="goal-current" name="current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" inputmode="decimal" id="goal-target" name="target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" inputmode="decimal" id="goal-current" name="current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" name="deadline" id="goal-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" id="cancel-goal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
@@ -509,7 +523,7 @@
                 <h3 class="text-lg font-bold mb-4">Adicionar Investimento</h3>
                 <div class="space-y-3">
                     <input type="text" id="investment-description" name="description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" id="investment-amount" name="amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" inputmode="decimal" id="investment-amount" name="amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <select id="investment-type" name="type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                         <option value="treasury">Tesouro Direto</option>
                         <option value="cdb">CDB/LCI/LCA</option>
@@ -518,7 +532,7 @@
                         <option value="funds">Fundos</option>
                         <option value="savings">Poupança</option>
                     </select>
-                    <input type="text" id="investment-yield" name="yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" inputmode="decimal" id="investment-yield" name="yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <input type="date" id="investment-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" id="cancel-investment" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
@@ -550,7 +564,7 @@
         <h3 id="contribution-modal-title" class="text-lg font-bold mb-4">Adicionar Contribuição</h3>
         <div class="space-y-3">
             <input type="hidden" id="contribution-goalId">
-            <input type="text" id="contribution-amount" placeholder="Valor da Contribuição (Ex: 100,00)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            <input type="text" inputmode="decimal" id="contribution-amount" placeholder="Valor da Contribuição (Ex: 100,00)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
             <input type="date" id="contribution-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
             <div class="flex justify-end gap-2 pt-2">
                 <button id="cancel-contribution" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
