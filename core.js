@@ -32,6 +32,29 @@ function calculateWorkHours(entry) {
  * @param {object} overtimeRange - O objeto { startDate, endDate } para o período de horas extras.
  * @returns {object} - Um objeto contendo todos os totais calculados.
  */
+/**
+ * Gera um item recorrente para o mês/ano dado, se ele cair dentro do período financeiro.
+ * @param {object} template - O modelo do item recorrente.
+ * @param {number} year - O ano atual selecionado.
+ * @param {number} month - O mês atual selecionado (1-12).
+ * @param {object} periodRange - O objeto { startDate, endDate } do período financeiro.
+ * @returns {object|null} O item gerado ou null se fora do período.
+ */
+export function generateRecurringItem(template, year, month, periodRange) {
+    const date = new Date(year, month - 1, template.dayOfMonth);
+    if (template.createdAt) {
+        const creationDate = new Date(template.createdAt);
+        const firstDayOfVisibleMonth = new Date(year, month - 1, 1);
+        if (firstDayOfVisibleMonth < new Date(creationDate.getFullYear(), creationDate.getMonth(), 1)) {
+            return null;
+        }
+    }
+    if (date >= periodRange.startDate && date <= periodRange.endDate) {
+        return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
+    }
+    return null;
+}
+
 export function calculateTotals(state, periodRange, overtimeRange) {
     const { incomes, expenses, investments, timeEntries } = state;
     const { expenseCategories } = state.settings;

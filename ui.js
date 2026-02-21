@@ -1,6 +1,129 @@
 import { formatCurrency, formatMinutesToHours, parseBrazilianNumber } from './utils.js';
 
 let reportChartInstance;
+let dashboardLineChartInstance;
+let dashboardPieChartInstance;
+
+// --- Funções do Dashboard ---
+
+export function renderDashboardCharts(state, totals) {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const textColor = isDarkMode ? '#cbd5e1' : '#374151';
+    const gridColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const { expenses } = state;
+    const { expenseCategories } = state.settings;
+
+    // --- Line Chart: Resumo do Mês ---
+    const lineCtx = document.getElementById('dashboard-line-chart')?.getContext('2d');
+    if (lineCtx) {
+        if (dashboardLineChartInstance) dashboardLineChartInstance.destroy();
+
+        // Build daily accumulation data
+        const allItems = [
+            ...state.incomes.map(i => ({ date: i.date, amount: i.amount, type: 'income' })),
+            ...expenses.map(e => ({ date: e.date, amount: e.amount, type: 'expense' }))
+        ].sort((a, b) => a.date.localeCompare(b.date));
+
+        const dailyMap = {};
+        allItems.forEach(item => {
+            if (!dailyMap[item.date]) dailyMap[item.date] = { income: 0, expense: 0 };
+            if (item.type === 'income') dailyMap[item.date].income += item.amount;
+            else dailyMap[item.date].expense += item.amount;
+        });
+
+        const labels = Object.keys(dailyMap).map(d => {
+            const dt = new Date(d + 'T00:00:00');
+            return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        });
+        let cumulativeIncome = 0, cumulativeExpense = 0;
+        const incomeData = [], expenseData = [];
+        Object.values(dailyMap).forEach(v => {
+            cumulativeIncome += v.income;
+            cumulativeExpense += v.expense;
+            incomeData.push(cumulativeIncome);
+            expenseData.push(cumulativeExpense);
+        });
+
+        // If no data, show placeholder
+        if (labels.length === 0) {
+            labels.push('Sem dados');
+            incomeData.push(0);
+            expenseData.push(0);
+        }
+
+        dashboardLineChartInstance = new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Entradas',
+                        data: incomeData,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Saídas',
+                        data: expenseData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: textColor, usePointStyle: true, pointStyle: 'circle' } } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, callback: v => 'R$ ' + v.toLocaleString('pt-BR') } },
+                    x: { grid: { display: false }, ticks: { color: textColor } }
+                }
+            }
+        });
+    }
+
+    // --- Pie Chart: Gasto por Categoria ---
+    const pieCtx = document.getElementById('dashboard-pie-chart')?.getContext('2d');
+    if (pieCtx) {
+        if (dashboardPieChartInstance) dashboardPieChartInstance.destroy();
+
+        const categoryLabels = Object.values(expenseCategories);
+        const categoryData = Object.keys(expenseCategories).map(catKey =>
+            expenses.filter(e => e.category === catKey).reduce((sum, e) => sum + e.amount, 0)
+        );
+        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#6b7280', '#ec4899', '#06b6d4'];
+
+        dashboardPieChartInstance = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryData,
+                    backgroundColor: colors.slice(0, categoryLabels.length),
+                    borderWidth: isDarkMode ? 0 : 2,
+                    borderColor: isDarkMode ? 'transparent' : '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+}
 
 // --- Funções de Notificação ---
 
@@ -187,12 +310,12 @@ export function showEditModal(type, item, state) {
 // --- Funções de UI Geral ---
 
 export function toggleMobileMenu() {
-    document.getElementById('mobile-menu').classList.toggle('open');
+    document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('mobile-menu-overlay').classList.toggle('hidden');
 }
 
 export function closeMobileMenu() {
-    document.getElementById('mobile-menu').classList.remove('open');
+    document.getElementById('sidebar').classList.remove('open');
     document.getElementById('mobile-menu-overlay').classList.add('hidden');
 }
 

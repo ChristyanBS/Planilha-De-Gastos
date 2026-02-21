@@ -22,197 +22,196 @@
 </head>
 
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
-   <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden"></div>
-    <div id="mobile-menu" class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl z-50 p-6 md:hidden">
-        <h2 class="text-xl font-bold text-indigo-700 dark:text-indigo-400 mb-6">Menu</h2>
-        <nav class="flex flex-col space-y-2">
-            <button data-tab="income" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Renda</button>
-            <button data-tab="expenses" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Despesas</button>
-            <button data-tab="hours" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Horas</button>
-            <button data-tab="recurring" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Fixos</button>
-            <button data-tab="goals" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Metas</button>
-            <button data-tab="investments" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Investimentos</button>
-            <button data-tab="calculator" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Calculadora</button>
-            <button data-tab="reports" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Relatórios</button>
-            <button data-tab="account" class="tab-btn text-left p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Minha Conta</button>
-        </nav>
-    </div>
-    <div id="main-container" class="container mx-auto px-4 py-8">
-        
-       <header class="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
-    <div class="flex flex-col items-center text-center space-y-4">
+  <div class="app-layout" id="main-container" style="display:none;">
+    <!-- Mobile overlay -->
+    <div id="mobile-menu-overlay" class="hidden fixed inset-0 bg-black/50 z-[39]"></div>
     
-        <div>
-            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 dark:text-indigo-400">Planilha Financeira</h1>
-            <h2 id="header-subtitle" class="text-xl md:text-2xl text-indigo-600 dark:text-indigo-500 cursor-pointer hover:opacity-75 transition-opacity" title="Clique para editar"></h2>
-            <p id="welcome-message" class="text-md text-gray-500 dark:text-gray-400 mt-1"></p>
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-brand">
+        <h1><i class="fas fa-wallet"></i> Finanças</h1>
+        <p id="header-subtitle"></p>
+      </div>
+      <nav>
+        <span class="sidebar-section-label">Principal</span>
+        <button data-tab="dashboard" class="tab-btn sidebar-btn"><i class="fas fa-chart-line"></i> Dashboard</button>
+        
+        <span class="sidebar-section-label">Transações</span>
+        <button data-tab="income" class="tab-btn sidebar-btn"><i class="fas fa-hand-holding-dollar"></i> Renda</button>
+        <button data-tab="expenses" class="tab-btn sidebar-btn"><i class="fas fa-receipt"></i> Despesas</button>
+        <button data-tab="hours" class="tab-btn sidebar-btn"><i class="fas fa-clock"></i> Horas Extras</button>
+        <button data-tab="recurring" class="tab-btn sidebar-btn"><i class="fas fa-sync-alt"></i> Fixos</button>
+        
+        <span class="sidebar-section-label">Planejamento</span>
+        <button data-tab="goals" class="tab-btn sidebar-btn"><i class="fas fa-bullseye"></i> Metas</button>
+        <button data-tab="investments" class="tab-btn sidebar-btn"><i class="fas fa-gem"></i> Investimentos</button>
+        
+        <span class="sidebar-section-label">Ferramentas</span>
+        <button data-tab="calculator" class="tab-btn sidebar-btn"><i class="fas fa-calculator"></i> Calculadora</button>
+        <button data-tab="reports" class="tab-btn sidebar-btn"><i class="fas fa-chart-pie"></i> Relatórios</button>
+        <button data-tab="account" class="tab-btn sidebar-btn"><i class="fas fa-user-cog"></i> Minha Conta</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="theme-toggle-btn" class="sidebar-btn"><i class="fas fa-moon"></i> <span id="theme-toggle-text">Modo Escuro</span></button>
+        <button id="privacy-toggle-btn" class="sidebar-btn"><i class="fas fa-eye"></i> <span>Ocultar Valores</span></button>
+        <button id="logout-btn" class="sidebar-btn" style="color:#f87171;"><i class="fas fa-sign-out-alt"></i> Sair</button>
+      </div>
+    </aside>
+    
+    <!-- Main Panel -->
+    <div id="main-panel">
+      <!-- Top Bar -->
+      <div id="top-bar" class="no-print">
+        <div class="topbar-left">
+          <button id="mobile-sidebar-toggle"><i class="fas fa-bars"></i></button>
+          <p id="welcome-message" style="margin:0;font-size:0.85rem;color:var(--text-secondary);"></p>
+        </div>
+        <div class="topbar-center">
+          <button id="period-prev-btn" class="period-nav-btn" title="Mês anterior"><i class="fas fa-chevron-left"></i></button>
+          <span id="period-display-label" class="period-label">Fevereiro 2026</span>
+          <button id="period-next-btn" class="period-nav-btn" title="Próximo mês"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="topbar-right">
+          <!-- Hidden selects kept for JS compatibility -->
+          <select id="month-select" class="sr-only" aria-hidden="true">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+          <select id="year-select" class="sr-only" aria-hidden="true"></select>
+          <button id="print-btn" class="topbar-btn" title="Imprimir"><i class="fas fa-print"></i></button>
+          <button id="reset-btn" class="topbar-btn" title="Reiniciar Mês"><i class="fas fa-redo"></i></button>
+          <button id="clear-all-btn" class="topbar-btn" title="Limpar Tudo" style="color:var(--danger);"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      </div>
+      
+      <!-- iOS install banner -->
+      <div id="ios-install-banner" class="hidden no-print" style="margin:1rem;padding:0.75rem 1rem;background:var(--accent-light);border:1px solid var(--border-color);border-radius:0.5rem;text-align:center;color:var(--text-primary);">
+        <p style="font-weight:700;">Instale nosso App no seu iPhone!</p>
+        <p style="font-size:0.85rem;">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
+      </div>
+      
+      <!-- Content Area -->
+      <div id="content-area">
+        
+        <!-- ===== DASHBOARD TAB ===== -->
+        <div id="dashboard-content" class="tab-content">
+          <div class="summary-cards">
+            <div class="summary-card income">
+              <div class="card-icon"><i class="fas fa-arrow-up"></i></div>
+              <div class="card-body">
+                <div class="card-label">Entradas</div>
+                <div class="card-value" id="total-income">R$ 0,00</div>
+              </div>
+            </div>
+            <div class="summary-card expense">
+              <div class="card-icon"><i class="fas fa-arrow-down"></i></div>
+              <div class="card-body">
+                <div class="card-label">Saídas</div>
+                <div class="card-value" id="total-expenses">R$ 0,00</div>
+              </div>
+            </div>
+            <div class="summary-card balance">
+              <div class="card-icon"><i class="fas fa-wallet"></i></div>
+              <div class="card-body">
+                <div class="card-label">Saldo Total</div>
+                <div class="card-value" id="available-balance">R$ 0,00</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="dashboard-charts">
+            <div class="chart-wrapper">
+              <h4><i class="fas fa-chart-line" style="color:var(--accent);margin-right:0.5rem;"></i>Resumo do Mês</h4>
+              <div class="chart-container"><canvas id="dashboard-line-chart"></canvas></div>
+            </div>
+            <div class="chart-wrapper">
+              <h4><i class="fas fa-chart-pie" style="color:var(--accent);margin-right:0.5rem;"></i>Gasto por Categoria</h4>
+              <div class="chart-container"><canvas id="dashboard-pie-chart"></canvas></div>
+            </div>
+          </div>
+          
+          <div class="secondary-cards">
+            <div class="secondary-card">
+              <div class="card-label"><i class="fas fa-piggy-bank"></i> Economia no Período</div>
+              <div class="card-value" id="month-savings">R$ 0,00</div>
+            </div>
+            <div class="secondary-card">
+              <div class="card-label"><i class="fas fa-clock"></i> Despesas Pendentes</div>
+              <div class="card-value" id="pending-expenses" style="color:var(--danger);">R$ 0,00</div>
+            </div>
+            <div class="secondary-card">
+              <div class="card-label"><i class="fas fa-chart-line"></i> Aportado no Período</div>
+              <div class="card-value" id="total-invested">R$ 0,00</div>
+            </div>
+          </div>
+          
+          <p id="date-range-display" class="period-range-text"></p>
         </div>
         
-        <div class="no-print flex items-center space-x-2">
-            <button id="privacy-toggle-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-full flex items-center shadow-sm" title="Ocultar/Mostrar Valores">
-                    <i class="fas fa-eye"></i>
-            </button>
-            <button id="theme-toggle-btn" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-full flex items-center shadow-sm">
-                    <i class="fas fa-moon mr-2"></i>
-                    <span id="theme-toggle-text" class="hidden sm:inline">Modo Escuro</span>
-            </button>
-            <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-full flex items-center shadow-sm">
-                    <i class="fas fa-sign-out-alt mr-2"></i>
-                    <span class="hidden sm:inline">Sair</span>
-            </button>
-        </div>
-    </div>
-
-    <div class="mt-6 flex flex-col sm:flex-row justify-center items-center space-y-2 sm:space-y-0 sm:space-x-2 no-print px-4 sm:px-0">
-        <button id="print-btn" class="w-full sm:w-auto bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-print mr-2"></i> Imprimir</button>
-        <button id="reset-btn" class="w-full sm:w-auto bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-900/70 text-rose-800 dark:text-rose-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-redo mr-2"></i> Reiniciar Mês</button>
-        <button id="clear-all-btn" class="w-full sm:w-auto bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900/70 text-red-800 dark:text-red-200 px-4 py-2 rounded-lg flex items-center justify-center"><i class="fas fa-trash-alt mr-2"></i> Limpar Tudo</button>
-    </div>
-
-    <div id="ios-install-banner" class="hidden no-print mt-4 bg-blue-50 dark:bg-blue-900/60 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg text-center">
-        <p class="font-bold">Instale nosso App no seu iPhone!</p>
-        <p class="text-sm">Toque no ícone de "Compartilhar" <i class="fas fa-share-square"></i> e depois em "Adicionar à Tela de Início".</p>
-    </div>
-</header>
-
-        <div id="install-prompt-banner" class="hidden no-print fixed bottom-0 left-0 right-0 w-full bg-indigo-600 dark:bg-indigo-700 text-white p-4 shadow-lg z-50 transform translate-y-full transition-transform duration-500 ease-in-out">
-    <div class="container mx-auto flex items-center justify-between">
-        <div class="flex items-center">
-            <img src="images/icons/icon-192x192.png" alt="App Icon" class="w-10 h-10 mr-4 rounded-lg">
-            <div>
-                <h4 class="font-bold">Instale nosso aplicativo!</h4>
-                <p class="text-sm">Tenha acesso rápido e offline diretamente da sua tela inicial.</p>
-            </div>
-        </div>
-        <div class="flex items-center">
-            <button id="install-app-btn" class="bg-white hover:bg-gray-200 text-indigo-700 font-bold py-2 px-4 rounded-lg transition-colors">
-                Instalar
-            </button>
-            <button id="close-install-banner-btn" class="ml-4 text-2xl opacity-80 hover:opacity-100" title="Fechar">
-                &times;
-            </button>
-        </div>
-    </div>
-</div>
-
-        <section class="mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <div class="flex flex-col sm:flex-row w-full sm:w-auto">
-                    <select id="month-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 mb-2 sm:mb-0 sm:mr-2 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="1">Janeiro</option> <option value="2">Fevereiro</option>
-                        <option value="3">Março</option> <option value="4">Abril</option>
-                        <option value="5">Maio</option> <option value="6">Junho</option>
-                        <option value="7">Julho</option> <option value="8">Agosto</option>
-                        <option value="9">Setembro</option> <option value="10">Outubro</option>
-                        <option value="11">Novembro</option> <option value="12">Dezembro</option>
-                    </select>
-                    <select id="year-select" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1 w-full sm:w-auto focus:ring-indigo-500 focus:border-indigo-500">
-
-                    </select>
+        <!-- ===== INCOME TAB ===== -->
+            <div id="income-content" class="tab-content hidden">
+                <div class="panel-header">
+                    <h3>Rendas do Período</h3>
+                    <button id="add-income-btn" class="btn-primary no-print"><i class="fas fa-plus"></i> Adicionar Renda</button>
                 </div>
-            </div>
-
-            <div class="text-center mb-4">
-                <p id="date-range-display" class="text-sm text-gray-500 dark:text-gray-400 font-medium"></p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div class="bg-indigo-50 dark:bg-indigo-900/60 p-4 rounded-lg"><p class="text-sm text-indigo-600 dark:text-indigo-300">Renda Total</p><p id="total-income" class="text-2xl font-bold text-indigo-700 dark:text-indigo-200">R$ 0,00</p></div>
-                <div class="bg-emerald-50 dark:bg-emerald-900/60 p-4 rounded-lg"><p class="text-sm text-emerald-600 dark:text-emerald-300">Saldo Disponível</p><p id="available-balance" class="text-2xl font-bold text-emerald-700 dark:text-emerald-200">R$ 0,00</p></div>
-                 <div class="bg-red-50 dark:bg-red-900/60 p-4 rounded-lg"><p class="text-sm text-red-600 dark:text-red-300">Despesas Pendentes</p><p id="pending-expenses" class="text-2xl font-bold text-red-700 dark:text-red-200">R$ 0,00</p></div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-amber-50 dark:bg-amber-900/60 p-4 rounded-lg"><p class="text-sm text-amber-600 dark:text-amber-300">Total de Despesas (Período)</p><p id="total-expenses" class="text-2xl font-bold text-amber-700 dark:text-amber-200">R$ 0,00</p></div>
-                <div class="bg-blue-50 dark:bg-blue-900/60 p-4 rounded-lg"><p class="text-sm text-blue-600 dark:text-blue-300">Economia no Período</p><p id="month-savings" class="text-2xl font-bold text-blue-700 dark:text-blue-200">R$ 0,00</p></div>
-                <div class="bg-purple-50 dark:bg-purple-900/60 p-4 rounded-lg"><p class="text-sm text-purple-600 dark:text-purple-300">Aportado no Período</p><p id="total-invested" class="text-2xl font-bold text-purple-700 dark:text-purple-200">R$ 0,00</p></div>
-            </div>
-        </section>
-
-        <div class="hidden md:flex border-b border-gray-200 dark:border-gray-700 no-print">
-    <div class="flex flex-wrap -mb-px">
-        <div class="relative dropdown">
-            <button class="nav-main-btn">Transações <i class="fas fa-chevron-down text-xs ml-1"></i></button>
-            <div class="dropdown-menu">
-                <button data-tab="income" class="tab-btn dropdown-item">Renda</button>
-                <button data-tab="expenses" class="tab-btn dropdown-item">Despesas</button>
-                <button data-tab="recurring" class="tab-btn dropdown-item">Itens Fixos</button>
-            </div>
-        </div>
-        <div class="relative dropdown">
-            <button class="nav-main-btn">Planejamento <i class="fas fa-chevron-down text-xs ml-1"></i></button>
-            <div class="dropdown-menu">
-                <button data-tab="goals" class="tab-btn dropdown-item">Metas</button>
-                <button data-tab="investments" class="tab-btn dropdown-item">Investimentos</button>
-            </div>
-        </div>
-        <div class="relative dropdown">
-            <button class="nav-main-btn">Ferramentas <i class="fas fa-chevron-down text-xs ml-1"></i></button>
-            <div class="dropdown-menu">
-                <button data-tab="hours" class="tab-btn dropdown-item">Horas</button>
-                <button data-tab="calculator" class="tab-btn dropdown-item">Calculadora</button>
-                <button data-tab="reports" class="tab-btn dropdown-item">Relatórios</button>
-            </div>
-        </div>
-        <button data-tab="account" class="tab-btn nav-main-btn">Minha Conta</button>
-    </div>
-</div>
-
-        <div class="bg-white dark:bg-gray-800/50 rounded-b-xl shadow-md p-6 mb-8">
-            <div id="income-content" class="tab-content">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold">Rendas do Período</h3>
-                    <button id="add-income-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Renda</button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
-                    <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg"><p class="text-sm">Fixa</p><p id="fixed-income" class="font-bold text-lg">R$ 0,00</p></div>
-                    <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Variável</p><p id="variable-income" class="font-bold text-lg">R$ 0,00</p></div>
-                    <div class="bg-purple-50 dark:bg-purple-900/50 p-3 rounded-lg"><p class="text-sm">Extra</p><p id="extra-income" class="font-bold text-lg">R$ 0,00</p></div>
+                <div class="mini-cards cols-3">
+                    <div class="mini-card"><div class="mini-label">Fixa</div><div class="mini-value" id="fixed-income">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Variável</div><div class="mini-value" id="variable-income">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Extra</div><div class="mini-value" id="extra-income">R$ 0,00</div></div>
                 </div>
                 <div class="table-container">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr><th class="px-6 py-3">Fonte</th><th class="px-6 py-3">Valor</th><th class="px-6 py-3">Tipo</th><th class="px-6 py-3">Data</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                    <table>
+                        <thead>
+                            <tr><th>Fonte</th><th class="text-right">Valor</th><th>Tipo</th><th>Data</th><th class="text-right no-print">Ações</th></tr>
                         </thead>
                         <tbody id="incomes-table"></tbody>
                     </table>
                 </div>
             </div>
             <div id="recurring-content" class="tab-content hidden">
-    <h3 class="text-xl font-semibold mb-4">Gerenciar Itens Fixos</h3>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Aqui você pode adicionar, ver e apagar os modelos de suas rendas e despesas que se repetem todo mês.</p>
-
-    <div class="flex justify-between items-center mb-2">
-        <h4 class="text-lg font-semibold">Rendas Fixas</h4>
-        <button id="add-recurring-income-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Renda Fixa</button>
+    <div class="panel-header">
+        <div>
+            <h3>Gerenciar Itens Fixos</h3>
+            <p class="panel-subtitle">Adicione, visualize e apague modelos de rendas e despesas que se repetem todo mês.</p>
+        </div>
     </div>
-    <div class="table-container mb-6">
-        <table class="w-full text-sm text-left">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+
+    <div class="panel-header" style="margin-bottom:0.5rem;">
+        <h4 style="font-size:1rem;font-weight:600;color:var(--text-primary);margin:0;">Rendas Fixas</h4>
+        <button id="add-recurring-income-btn" class="btn-primary no-print"><i class="fas fa-plus"></i> Adicionar Renda Fixa</button>
+    </div>
+    <div class="table-container" style="margin-bottom:2rem;">
+        <table>
+            <thead>
                 <tr>
-                    <th class="px-6 py-3">Fonte</th>
-                    <th class="px-6 py-3">Valor</th>
-                    <th class="px-6 py-3">Tipo</th>
-                    <th class="px-6 py-3">Dia do Pagamento</th>
-                    <th class="px-6 py-3 text-right no-print">Ações</th>
+                    <th>Fonte</th>
+                    <th class="text-right">Valor</th>
+                    <th>Tipo</th>
+                    <th>Dia do Pagamento</th>
+                    <th class="text-right no-print">Ações</th>
                 </tr>
             </thead>
             <tbody id="recurring-incomes-table"></tbody>
         </table>
     </div>
 
-    <div class="flex justify-between items-center mb-2">
-        <h4 class="text-lg font-semibold">Despesas Fixas</h4>
-        <button id="add-recurring-expense-btn" class="no-print bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Despesa Fixa</button>
+    <div class="panel-header" style="margin-bottom:0.5rem;">
+        <h4 style="font-size:1rem;font-weight:600;color:var(--text-primary);margin:0;">Despesas Fixas</h4>
+        <button id="add-recurring-expense-btn" class="btn-danger no-print"><i class="fas fa-plus"></i> Adicionar Despesa Fixa</button>
     </div>
     <div class="table-container">
-        <table class="w-full text-sm text-left">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+        <table>
+            <thead>
                 <tr>
-                    <th class="px-6 py-3">Descrição</th>
-                    <th class="px-6 py-3">Valor</th>
-                    <th class="px-6 py-3">Categoria</th>
-                    <th class="px-6 py-3">Dia do Vencimento</th>
-                    <th class="px-6 py-3 text-right no-print">Ações</th>
+                    <th>Descrição</th>
+                    <th class="text-right">Valor</th>
+                    <th>Categoria</th>
+                    <th>Dia do Vencimento</th>
+                    <th class="text-right no-print">Ações</th>
                 </tr>
             </thead>
             <tbody id="recurring-expenses-table"></tbody>
@@ -220,31 +219,38 @@
     </div>
 </div>
             <div id="expenses-content" class="tab-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold">Despesas do Período</h3>
-                    <button id="add-expense-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Despesa</button>
+                <div class="panel-header">
+                    <h3>Despesas do Período</h3>
+                    <div class="panel-actions">
+                        <button id="import-csv-btn" class="btn-secondary no-print"><i class="fas fa-file-import"></i> Importar Extrato</button>
+                        <button id="add-expense-btn" class="btn-primary no-print"><i class="fas fa-plus"></i> Adicionar Despesa</button>
+                    </div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4 text-center text-xs">
-                    <div class="bg-red-50 dark:bg-red-900/50 p-2 rounded-lg">Moradia<p id="home-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-orange-50 dark:bg-orange-900/50 p-2 rounded-lg">Alimentação<p id="food-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-yellow-50 dark:bg-yellow-900/50 p-2 rounded-lg">Transporte<p id="transport-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-green-50 dark:bg-green-900/50 p-2 rounded-lg">Saúde<p id="health-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-blue-50 dark:bg-blue-900/50 p-2 rounded-lg">Educação<p id="education-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-purple-50 dark:bg-purple-900/50 p-2 rounded-lg">Lazer<p id="entertainment-expenses" class="font-bold">R$ 0,00</p></div>
-                    <div class="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg col-span-2">Outros<p id="other-expenses" class="font-bold">R$ 0,00</p></div>
+                <div class="mini-cards cols-4">
+                    <div class="mini-card"><div class="mini-label">Moradia</div><div class="mini-value" id="home-expenses">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Alimentação</div><div class="mini-value" id="food-expenses">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Transporte</div><div class="mini-value" id="transport-expenses">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Saúde</div><div class="mini-value" id="health-expenses">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Educação</div><div class="mini-value" id="education-expenses">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Lazer</div><div class="mini-value" id="entertainment-expenses">R$ 0,00</div></div>
+                    <div class="mini-card" style="grid-column: span 2;"><div class="mini-label">Outros</div><div class="mini-value" id="other-expenses">R$ 0,00</div></div>
                 </div>
                 <div class="table-container">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr><th class="px-2 py-3 no-print">Status</th><th class="px-6 py-3">Categoria</th><th class="px-6 py-3">Descrição</th><th class="px-6 py-3">Valor</th><th class="px-6 py-3">Data</th><th class="px-6 py-3">Pagamento</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                    <table>
+                        <thead>
+                            <tr><th class="no-print" style="width:50px;">Status</th><th>Categoria</th><th>Descrição</th><th class="text-right">Valor</th><th>Data</th><th>Pagamento</th><th class="text-right no-print">Ações</th></tr>
                         </thead>
                         <tbody id="expenses-table"></tbody>
                     </table>
                 </div>
             </div>
              <div id="hours-content" class="tab-content hidden">
-    <h3 class="text-xl font-semibold mb-4">Registro de Horas Trabalhadas</h3>
-    <p id="hours-period-display" class="text-sm text-center text-gray-500 dark:text-gray-400 -mt-2 mb-4"></p>
+    <div class="panel-header">
+        <div>
+            <h3>Registro de Horas Trabalhadas</h3>
+            <p id="hours-period-display" class="panel-subtitle"></p>
+        </div>
+    </div>
     <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
        <div class="grid grid-cols-1 md:grid-cols-8 gap-4 items-end">
     <div class="md:col-span-2">
@@ -267,24 +273,24 @@
     </div>
 </div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
-        <div class="bg-blue-50 dark:bg-blue-900/50 p-3 rounded-lg"><p class="text-sm">Horas Trabalhadas (Período)</p><p id="total-worked-hours" class="font-bold text-lg">0h 0m</p></div>
-        <div class="bg-green-50 dark:bg-green-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 50% (Período)</p><p id="total-overtime-50" class="font-bold text-lg">0h 0m</p></div>
-        <div class="bg-red-50 dark:bg-red-900/50 p-3 rounded-lg"><p class="text-sm">Horas Extras 100% (Período)</p><p id="total-overtime-100" class="font-bold text-lg">0h 0m</p></div>
+    <div class="mini-cards cols-3">
+        <div class="mini-card"><div class="mini-label">Horas Trabalhadas (Período)</div><div class="mini-value" id="total-worked-hours">0h 0m</div></div>
+        <div class="mini-card"><div class="mini-label">Horas Extras 50%</div><div class="mini-value" id="total-overtime-50">0h 0m</div></div>
+        <div class="mini-card"><div class="mini-label">Horas Extras 100%</div><div class="mini-value" id="total-overtime-100">0h 0m</div></div>
     </div>
     <div class="table-container">
-        <table class="w-full text-sm text-left">
-            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr><th class="px-6 py-3">Data</th><th class="px-6 py-3">Jornada</th><th class="px-6 py-3">Intervalo</th><th class="px-6 py-3">Total Dia</th><th class="px-6 py-3">H. Extra</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+        <table>
+            <thead>
+                <tr><th>Data</th><th>Jornada</th><th>Intervalo</th><th>Total Dia</th><th>H. Extra</th><th class="text-right no-print">Ações</th></tr>
             </thead>
             <tbody id="hours-table"></tbody>
         </table>
     </div>
 </div>
             <div id="goals-content" class="tab-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold">Metas Financeiras</h3>
-                    <button id="add-goal-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Meta</button>
+                <div class="panel-header">
+                    <h3>Metas Financeiras</h3>
+                    <button id="add-goal-btn" class="btn-primary no-print"><i class="fas fa-plus"></i> Adicionar Meta</button>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div class="bg-blue-50 dark:bg-blue-900/50 p-4 rounded-lg">
@@ -299,35 +305,37 @@
                     </div>
                 </div>
                 <div class="table-container">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr><th class="px-6 py-3">Nome</th><th class="px-6 py-3">Meta</th><th class="px-6 py-3">Atual</th><th class="px-6 py-3">Prazo</th><th class="px-6 py-3">Progresso</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                    <table>
+                        <thead>
+                            <tr><th>Nome</th><th class="text-right">Meta</th><th class="text-right">Atual</th><th>Prazo</th><th>Progresso</th><th class="text-right no-print">Ações</th></tr>
                         </thead>
                         <tbody id="goals-table"></tbody>
                     </table>
                 </div>
             </div>
             <div id="investments-content" class="tab-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold">Carteira de Investimentos</h3>
-                    <button id="add-investment-btn" class="no-print bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center"><i class="fas fa-plus mr-2"></i>Adicionar Investimento</button>
+                <div class="panel-header">
+                    <h3>Carteira de Investimentos</h3>
+                    <button id="add-investment-btn" class="btn-primary no-print"><i class="fas fa-plus"></i> Adicionar Investimento</button>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
-                    <div class="bg-indigo-50 dark:bg-indigo-900/50 p-3 rounded-lg"><p class="text-sm">Total Investido</p><p id="total-investment" class="font-bold text-lg">R$ 0,00</p></div>
-                    <div class="bg-teal-50 dark:bg-teal-900/50 p-3 rounded-lg"><p class="text-sm">Rendimento Anual (est.)</p><p id="expected-return" class="font-bold text-lg">R$ 0,00</p></div>
-                    <div class="bg-sky-50 dark:bg-sky-900/50 p-3 rounded-lg"><p class="text-sm">Rendimento Mensal (est.)</p><p id="monthly-return" class="font-bold text-lg">R$ 0,00</p></div>
+                <div class="mini-cards cols-3">
+                    <div class="mini-card"><div class="mini-label">Total Investido</div><div class="mini-value" id="total-investment">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Rendimento Anual (est.)</div><div class="mini-value" id="expected-return">R$ 0,00</div></div>
+                    <div class="mini-card"><div class="mini-label">Rendimento Mensal (est.)</div><div class="mini-value" id="monthly-return">R$ 0,00</div></div>
                 </div>
                 <div class="table-container">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr><th class="px-6 py-3">Tipo</th><th class="px-6 py-3">Descrição</th><th class="px-6 py-3">Valor Aportado</th><th class="px-6 py-3">Rendimento</th><th class="px-6 py-3">Data</th><th class="px-6 py-3 text-right no-print">Ações</th></tr>
+                    <table>
+                        <thead>
+                            <tr><th>Tipo</th><th>Descrição</th><th class="text-right">Valor Aportado</th><th class="text-right">Rendimento</th><th>Data</th><th class="text-right no-print">Ações</th></tr>
                         </thead>
                         <tbody id="investments-table"></tbody>
                     </table>
                 </div>
             </div>
             <div id="calculator-content" class="tab-content hidden">
-                <h3 class="text-xl font-semibold mb-4">Calculadora de Salário Líquido</h3>
+                <div class="panel-header">
+                    <h3>Calculadora de Salário Líquido</h3>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-4">
                         <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" inputmode="decimal" id="calc-base-salary" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 3500,00"></div>
@@ -383,18 +391,19 @@
                 </div>
             </div>
             <div id="reports-content" class="tab-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold">Relatórios Visuais</h3>
-                    <div class="flex items-center gap-2">
-                        <label for="report-type" class="text-sm">Tipo:</label>
-                        <select id="report-type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><option value="income-vs-expenses">Renda vs Despesas</option><option value="expenses-by-category">Despesas por Categoria</option><option value="paid-vs-pending">Despesas Pagas vs Pendentes</option><option value="income-breakdown">Detalhamento da Renda</option></select>
-                        <button id="generate-report-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg transition-colors">Gerar</button>
+                <div class="panel-header">
+                    <h3>Relatórios Visuais</h3>
+                    <div class="panel-actions">
+                        <select id="report-type" class="form-input" style="width:auto;min-width:180px;"><option value="income-vs-expenses">Renda vs Despesas</option><option value="expenses-by-category">Despesas por Categoria</option><option value="paid-vs-pending">Pagas vs Pendentes</option><option value="income-breakdown">Detalhamento da Renda</option></select>
+                        <button id="generate-report-btn" class="btn-secondary"><i class="fas fa-chart-bar"></i> Gerar</button>
                     </div>
                 </div>
                 <div class="chart-container"><canvas id="report-chart"></canvas></div>
             </div>
             <div id="account-content" class="tab-content hidden">
-    <h3 class="text-xl font-semibold mb-4">Gerenciar Conta</h3>
+    <div class="panel-header">
+        <h3>Gerenciar Conta</h3>
+    </div>
     <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg">
         <p class="text-gray-600 dark:text-gray-300">Você está logado com o email:</p>
         <p id="user-email-display" class="text-lg font-bold text-indigo-700 dark:text-indigo-200"></p>
@@ -437,7 +446,9 @@
         </div>
     </div>
 </div>
-        </div>
+      </div><!-- /content-area -->
+    </div><!-- /main-panel -->
+  </div><!-- /app-layout main-container -->
 
         <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
@@ -556,7 +567,6 @@
             </div>
         </div>
 
-    </div>
 
     <div id="contribution-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
@@ -574,7 +584,73 @@
     </div>
 </div>
 
+<!-- Modal de Importação CSV -->
+<div id="csv-import-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
+        <button id="close-csv-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+        <h3 class="text-lg font-bold mb-4"><i class="fas fa-file-import mr-2 text-emerald-500"></i>Importar Extrato (CSV / Excel)</h3>
+        
+        <div id="csv-drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors mb-4">
+            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-3"></i>
+            <p class="text-gray-600 dark:text-gray-400 font-medium">Arraste seu arquivo CSV ou Excel aqui</p>
+            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">ou clique para selecionar (.csv, .xls, .xlsx)</p>
+            <input type="file" id="csv-file-input" accept=".csv,.xls,.xlsx" class="hidden">
+        </div>
+
+        <div id="csv-preview" class="hidden mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="font-semibold text-sm">Pré-visualização</h4>
+                <span id="csv-count-display" class="text-xs bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-full"></span>
+            </div>
+            <div class="overflow-x-auto max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Data</th>
+                            <th class="px-3 py-2 text-left">Descrição</th>
+                            <th class="px-3 py-2 text-right">Valor</th>
+                            <th class="px-3 py-2 text-left">Categoria</th>
+                        </tr>
+                    </thead>
+                    <tbody id="csv-preview-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+            <button id="csv-cancel-import" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+            <button id="csv-confirm-import" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50" disabled>
+                <i class="fas fa-check mr-2"></i>Importar Tudo
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="install-prompt-banner"class="hidden no-print fixed bottom-0 left-0 right-0 w-full bg-indigo-600 dark:bg-indigo-700 text-white p-4 shadow-lg z-50 transform translate-y-full transition-transform duration-500 ease-in-out">
+    <div class="container mx-auto flex items-center justify-between">
+        <div class="flex items-center">
+            <img src="images/icons/icon-192x192.png" alt="App Icon" class="w-10 h-10 mr-4 rounded-lg">
+            <div>
+                <h4 class="font-bold">Instale nosso aplicativo!</h4>
+                <p class="text-sm">Tenha acesso rápido e offline diretamente da sua tela inicial.</p>
+            </div>
+        </div>
+        <div class="flex items-center">
+            <button id="install-app-btn" class="bg-white hover:bg-gray-200 text-indigo-700 font-bold py-2 px-4 rounded-lg transition-colors">
+                Instalar
+            </button>
+            <button id="close-install-banner-btn" class="ml-4 text-2xl opacity-80 hover:opacity-100" title="Fechar">
+                &times;
+            </button>
+        </div>
+    </div>
+</div>
+
 <nav id="bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 flex justify-around z-40">
+    <button data-tab="dashboard" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-chart-line text-xl mb-1"></i>
+        <span class="text-xs font-medium">Home</span>
+    </button>
     <button data-tab="income" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
         <i class="fas fa-hand-holding-dollar text-xl mb-1"></i>
         <span class="text-xs font-medium">Renda</span>
@@ -582,10 +658,6 @@
     <button data-tab="expenses" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
         <i class="fas fa-receipt text-xl mb-1"></i>
         <span class="text-xs font-medium">Despesas</span>
-    </button>
-    <button data-tab="hours" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
-        <i class="fas fa-clock text-xl mb-1"></i>
-        <span class="text-xs font-medium">Horas</span>
     </button>
     <button data-tab="goals" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
         <i class="fas fa-bullseye text-xl mb-1"></i>
@@ -602,12 +674,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <script src="./utils.js" type="module"></script>
     <script src="./core.js" type="module"></script>
     <script src="./calculator.js" type="module"></script>
-    <script src="./firestore.js" type="module"></script>
+    <script src="./firebaseService.js" type="module"></script>
     <script src="./ui.js" type="module"></script>
+    <script src="./csvImporter.js" type="module"></script>
     <script src="./pwa-handler.js" type="module"></script>
     <script src="./main.js" type="module"></script>
     

@@ -1,5 +1,5 @@
-const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v9';
-const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v9';
+const CACHE_NOME_ESTATICO = 'planilha-financeira-estatico-v10';
+const CACHE_NOME_DINAMICO = 'planilha-financeira-dinamico-v10';
 // Lista de arquivos essenciais para o funcionamento offline
 const urlsToCache = [
   './',
@@ -11,10 +11,11 @@ const urlsToCache = [
   'main.js',
   'ui.js',
   'core.js',
-  'firestore.js',
+  'firebaseService.js',
   'calculator.js',
   'utils.js',
   'pwa-handler.js',
+  'csvImporter.js',
   'images/icons/icon-192x192.png',
   'images/icons/icon-512x512.png',
   'images/icons/favicon-32x32.png'

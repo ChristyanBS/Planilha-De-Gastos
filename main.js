@@ -1,10 +1,11 @@
 // Arquivo: main.js (VERSÃO FINAL, LIMPA E CORRIGIDA)
 
 import * as ui from './ui.js';
-import * as db from './firestore.js';
+import * as db from './firebaseService.js';
 import * as utils from './utils.js';
 import * as core from './core.js';
 import * as calculator from './calculator.js';
+import * as csvImporter from './csvImporter.js';
 import { initPwaHandlers, checkAndShowInstallBanner } from './pwa-handler.js';
 
 // --- INICIALIZAÇÃO E ESTADO GLOBAL ---
@@ -32,6 +33,19 @@ const state = {
     currentYear: new Date().getFullYear(), currentMonth: new Date().getMonth() + 1
 };
 
+// --- FUNÇÕES AUXILIARES DO PERÍODO ---
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function updatePeriodLabel() {
+    const label = document.getElementById('period-display-label');
+    if (label) label.textContent = `${MONTH_NAMES[state.currentMonth - 1]} ${state.currentYear}`;
+}
+
+function syncPeriodSelects() {
+    document.getElementById('month-select').value = state.currentMonth;
+    document.getElementById('year-select').value = state.currentYear;
+}
+
 // --- LÓGICA PRINCIPAL ---
 async function updateDashboard() {
     if (!state.currentUser) return;
@@ -57,23 +71,8 @@ async function updateDashboard() {
     const periodData = await db.loadPeriodData(firestoreDB, state.currentUser, periodRange.startDate, periodRange.endDate);
     const timeEntriesData = await db.loadTimeEntriesForPeriod(firestoreDB, state.currentUser, overtimeRange.startDate, overtimeRange.endDate);
 
-    const generateRecurring = (template) => {
-        const date = new Date(state.currentYear, state.currentMonth - 1, template.dayOfMonth);
-        if (template.createdAt) {
-            const creationDate = new Date(template.createdAt);
-            const firstDayOfVisibleMonth = new Date(state.currentYear, state.currentMonth - 1, 1);
-            if (firstDayOfVisibleMonth < new Date(creationDate.getFullYear(), creationDate.getMonth(), 1)) {
-                return null;
-            }
-        }
-        if (date >= periodRange.startDate && date <= periodRange.endDate) {
-            return { ...template, date: date.toISOString().split('T')[0], isRecurring: true };
-        }
-        return null;
-    };
-
-    const generatedIncomes = state.recurringIncomes.map(generateRecurring).filter(Boolean);
-    const generatedExpenses = state.recurringExpenses.map(generateRecurring).filter(Boolean);
+    const generatedIncomes = state.recurringIncomes.map(t => core.generateRecurringItem(t, state.currentYear, state.currentMonth, periodRange)).filter(Boolean);
+    const generatedExpenses = state.recurringExpenses.map(t => core.generateRecurringItem(t, state.currentYear, state.currentMonth, periodRange)).filter(Boolean);
 
     state.incomes = [...periodData.incomes, ...generatedIncomes];
     state.expenses = [...periodData.expenses, ...generatedExpenses];
@@ -414,7 +413,12 @@ async function handleDeleteCustomItem(type, index) {
 }
 
 function handleTabChange(tabId) {
-    if (tabId === 'reports') {
+    if (tabId === 'dashboard') {
+        const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+        const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+        const totals = core.calculateTotals(state, periodRange, overtimeRange);
+        ui.renderDashboardCharts(state, totals);
+    } else if (tabId === 'reports') {
         handleGenerateReport();
     } else if (tabId === 'calculator') {
         const totals = core.calculateTotals(state, 
@@ -468,8 +472,25 @@ window.addEventListener('click', () => {
 
     // --- Listeners do Cabeçalho e Ações Gerais ---
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
-    document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updateDashboard(); });
-    document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updateDashboard(); });
+    document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
+    document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
+
+    // Period navigator arrows
+    document.getElementById('period-prev-btn').addEventListener('click', () => {
+        state.currentMonth--;
+        if (state.currentMonth < 1) { state.currentMonth = 12; state.currentYear--; }
+        syncPeriodSelects();
+        updatePeriodLabel();
+        updateDashboard();
+    });
+    document.getElementById('period-next-btn').addEventListener('click', () => {
+        state.currentMonth++;
+        if (state.currentMonth > 12) { state.currentMonth = 1; state.currentYear++; }
+        syncPeriodSelects();
+        updatePeriodLabel();
+        updateDashboard();
+    });
+
     document.getElementById('privacy-toggle-btn').addEventListener('click', () => { utils.togglePrivacyMode(); ui.updatePrivacyButton(utils.initPrivacyMode()); rerenderUI(); });
     document.getElementById('theme-toggle-btn').addEventListener('click', () => { ui.toggleTheme(); rerenderUI(); });
     document.getElementById('reset-btn').addEventListener('click', handleResetMonth);
@@ -477,6 +498,7 @@ window.addEventListener('click', () => {
     document.getElementById('print-btn').addEventListener('click', () => window.print());
     document.getElementById('mobile-menu-overlay').addEventListener('click', ui.closeMobileMenu);
     document.getElementById('more-menu-btn').addEventListener('click', ui.toggleMobileMenu);
+    document.getElementById('mobile-sidebar-toggle').addEventListener('click', ui.toggleMobileMenu);
 
     // --- Listeners dos Botões de Adicionar ---
     document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
@@ -533,13 +555,24 @@ window.addEventListener('click', () => {
             handleTabChange(this.dataset.tab);
         });
     });
+
+    // --- Inicialização do importador CSV ---
+    csvImporter.initCSVImportUI({
+        onConfirmImport: async (parsedData) => {
+            const result = await csvImporter.processImport(parsedData, db.saveExpense, db.saveItem, firestoreDB, state.currentUser);
+            if (result && (result.expenses > 0 || result.incomes > 0)) {
+                await updateDashboard();
+            }
+            return result;
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             state.currentUser = user;
-            document.getElementById('main-container').style.display = 'block';
+            document.getElementById('main-container').style.display = 'flex';
             
             await updateDashboard();
             
@@ -551,13 +584,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.populateYearDropdown();
             document.getElementById('year-select').value = state.currentYear;
             document.getElementById('month-select').value = state.currentMonth;
+            updatePeriodLabel();
             if (localStorage.getItem('theme') === 'dark') {
                 document.documentElement.classList.add('dark');
             }
             ui.updateThemeButton(localStorage.getItem('theme') || 'light');
             
             setupEventListeners();
-            document.querySelector('.tab-btn[data-tab="income"]').click();
+            document.querySelector('.tab-btn[data-tab="dashboard"]').click();
              initPwaHandlers();
              checkAndShowInstallBanner();
         } else {
