@@ -292,7 +292,13 @@ export function showEditModal(type, item, state) {
         modalTitle.textContent = `Editar ${ptTerms[type]}`;
         for (const key in item) {
             const input = document.getElementById(`${modalType}-${key}`);
-            if (input) input.value = item[key];
+            if (input) {
+                if (input.type === 'checkbox') {
+                    input.checked = Boolean(item[key]);
+                } else {
+                    input.value = item[key];
+                }
+            }
         }
     } else {
         saveBtn.removeAttribute('data-id');
@@ -382,6 +388,28 @@ export function populateCategoryDropdown(expenseCategories) {
 
 // --- Funções de Atualização de Conteúdo ---
 
+// Store previous values for counting animation
+const _prevValues = {};
+
+function animateValue(el, startVal, endVal, duration, formatFn) {
+    if (startVal === endVal) {
+        el.textContent = formatFn(endVal);
+        return;
+    }
+    const startTime = performance.now();
+    const diff = endVal - startVal;
+    function tick(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // easeOutCubic for smooth deceleration
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const current = startVal + diff * ease;
+        el.textContent = formatFn(current);
+        if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+}
+
 export function updateDashboardCards(totals) {
     const fields = {
         'total-income': totals.totalIncome, 'total-expenses': totals.totalExpenses, 'available-balance': totals.availableBalance,
@@ -394,7 +422,11 @@ export function updateDashboardCards(totals) {
     };
     for(const id in fields) {
         const el = document.getElementById(id);
-        if(el) el.textContent = formatCurrency(fields[id]);
+        if (!el) continue;
+        const newVal = fields[id] || 0;
+        const oldVal = _prevValues[id] || 0;
+        _prevValues[id] = newVal;
+        animateValue(el, oldVal, newVal, 500, formatCurrency);
     }
     
     document.getElementById('total-worked-hours').textContent = formatMinutesToHours(totals.totalWorkedMinutes);
@@ -783,4 +815,84 @@ export function generateReport(state, totals) {
             break;
     }
     reportChartInstance = new Chart(ctx, chartConfig);
+}
+
+// --- Visão Mensal de Transações ---
+
+const WEEKDAY_NAMES = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const CATEGORY_ICONS = {
+    housing:'fa-house', food:'fa-utensils', transport:'fa-bus', health:'fa-heart-pulse',
+    education:'fa-graduation-cap', entertainment:'fa-gamepad', other:'fa-ellipsis',
+    fixed:'fa-lock', variable:'fa-chart-line', extra:'fa-star'
+};
+
+export function renderTransactionsFeed(incomes, expenses, categories) {
+    const feed = document.getElementById('tx-feed');
+    if (!feed) return;
+
+    // Build unified list
+    const transactions = [
+        ...incomes.map(i => ({ ...i, _type: 'income', _label: i.source || 'Renda', _sub: i.type === 'fixed' ? 'Fixo' : i.type === 'variable' ? 'Variável' : 'Extra', _catIcon: CATEGORY_ICONS[i.type] || 'fa-hand-holding-dollar' })),
+        ...expenses.map(e => ({ ...e, _type: 'expense', _label: e.description || 'Despesa', _sub: categories[e.category] || e.category || '', _catIcon: CATEGORY_ICONS[e.category] || 'fa-receipt' }))
+    ].sort((a, b) => b.date.localeCompare(a.date)); // newest first
+
+    // Totals for summary cards
+    const totalIncome = incomes.reduce((s, i) => s + (i.amount || 0), 0);
+    const totalExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const balance = totalIncome - totalExpense;
+
+    const incomeEl = document.getElementById('tx-total-income');
+    const expenseEl = document.getElementById('tx-total-expense');
+    const balanceEl = document.getElementById('tx-balance');
+    if (incomeEl) incomeEl.textContent = formatCurrency(totalIncome);
+    if (expenseEl) expenseEl.textContent = formatCurrency(totalExpense);
+    if (balanceEl) {
+        balanceEl.textContent = formatCurrency(balance);
+        balanceEl.style.color = balance >= 0 ? '#22c55e' : '#ef4444';
+    }
+
+    if (transactions.length === 0) {
+        feed.innerHTML = `<div class="tx-empty-state"><i class="fas fa-inbox"></i><p>Nenhuma transação no período.</p></div>`;
+        return;
+    }
+
+    // Group by date
+    const groups = {};
+    transactions.forEach(tx => {
+        if (!groups[tx.date]) groups[tx.date] = [];
+        groups[tx.date].push(tx);
+    });
+
+    let html = '';
+    Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(date => {
+        const items = groups[date];
+        const d = new Date(date + 'T00:00:00');
+        const dayLabel = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+        const weekday = WEEKDAY_NAMES[d.getDay()];
+        const dayTotal = items.reduce((s, t) => s + (t._type === 'income' ? t.amount : -t.amount), 0);
+
+        html += `<div class="tx-day-group">`;
+        html += `<div class="tx-day-header">`;
+        html += `<span class="tx-day-label">${dayLabel}</span>`;
+        html += `<span class="tx-day-weekday">${weekday}</span>`;
+        html += `<span class="tx-day-total" style="color:${dayTotal >= 0 ? '#22c55e' : '#ef4444'}">${dayTotal >= 0 ? '+' : ''}${formatCurrency(dayTotal)}</span>`;
+        html += `</div>`;
+
+        items.forEach(tx => {
+            const cls = tx._type === 'income' ? 'is-income' : 'is-expense';
+            const sign = tx._type === 'income' ? '+' : '-';
+            const icon = tx._catIcon;
+            const badge = tx._type === 'income' ? 'Receita' : 'Despesa';
+            html += `<div class="tx-row ${cls}" data-tx-type="${tx._type}">`;
+            html += `<div class="tx-row-icon"><i class="fas ${icon}"></i></div>`;
+            html += `<div class="tx-row-body"><div class="tx-row-title">${tx._label}</div><div class="tx-row-sub">${tx._sub}</div></div>`;
+            html += `<span class="tx-row-badge">${badge}</span>`;
+            html += `<div class="tx-row-amount">${sign} ${formatCurrency(tx.amount)}</div>`;
+            html += `</div>`;
+        });
+
+        html += `</div>`;
+    });
+
+    feed.innerHTML = html;
 }

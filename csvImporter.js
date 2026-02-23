@@ -1,5 +1,5 @@
 // Arquivo: csvImporter.js
-// Motor de importação inteligente para extratos bancários em CSV.
+// Motor de importação inteligente para extratos bancários em CSV/Excel/OFX.
 
 import { showToast } from './ui.js';
 
@@ -48,6 +48,56 @@ const CATEGORY_KEYWORDS = {
 };
 
 /**
+ * Limpa uma string de valor monetário brasileiro (ex: '-R$ 1.500,50') e retorna um float.
+ * Remove 'R$', espaços, troca ponto milhar por vazio e vírgula decimal por ponto.
+ * @param {string|number} raw - O valor bruto (string ou número).
+ * @returns {number} O valor numérico (pode ser negativo). NaN se inválido.
+ */
+export function cleanBRLValue(raw) {
+    if (typeof raw === 'number') return raw;
+    const str = String(raw || '').trim();
+    if (!str) return NaN;
+    // Remove 'R$', espaços extras, '+' explícito
+    const cleaned = str
+        .replace(/R\$/gi, '')
+        .replace(/\s+/g, '')
+        .replace(/\+/g, '');
+    // Detecta formato BR: se tem vírgula como decimal (ex: 1.234,56 ou 99,99)
+    if (/,\d{1,2}$/.test(cleaned)) {
+        // Formato brasileiro: remove pontos de milhar, troca vírgula por ponto
+        const normalized = cleaned.replace(/\./g, '').replace(',', '.');
+        return parseFloat(normalized);
+    }
+    // Já é formato internacional ou número simples
+    return parseFloat(cleaned.replace(/[^\d.\-]/g, ''));
+}
+
+/**
+ * Extrai e formata uma data a partir de uma string em vários formatos.
+ * Suporta DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY, e Date objects.
+ * @param {string|Date} raw - Data bruta.
+ * @returns {string} Data no formato YYYY-MM-DD ou string vazia se inválida.
+ */
+function parseDateFlexible(raw) {
+    if (raw instanceof Date && !isNaN(raw)) {
+        return raw.toISOString().split('T')[0];
+    }
+    const dateStr = String(raw || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+        return dateStr.substring(0, 10);
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+        const [d, m, y] = dateStr.split('/');
+        return `${y}-${m}-${d}`;
+    }
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+        const [d, m, y] = dateStr.split('-');
+        return `${y}-${m}-${d}`;
+    }
+    return '';
+}
+
+/**
  * Detecta automaticamente o delimitador do CSV (vírgula, ponto-e-vírgula, ou tab).
  * @param {string} firstLine - A primeira linha do conteúdo CSV.
  * @returns {string} O delimitador detectado.
@@ -79,26 +129,26 @@ export function parseCSV(content) {
     const delimiter = detectDelimiter(lines[0]);
     const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
 
-    // Mapeamento inteligente de colunas (suporta diferentes bancos)
+    // Mapeamento inteligente de colunas (suporta PicPay, Nubank, Itaú, etc.)
     const columnMap = {
-        date: headers.findIndex(h =>
-            /^(data|date|dt|data.transação|data.transacao|data.compra|data.lançamento|data.lancamento)$/i.test(h) ||
-            h.includes('data')
-        ),
+        date: headers.findIndex(h => /^(data|date|dt)$/i.test(h) || h.includes('data')),
+        time: headers.findIndex(h => /^hora$/i.test(h)),
+        type: headers.findIndex(h => /^tipo$/i.test(h)),
+        origin: headers.findIndex(h => /^(origem|destino|origem \/ destino|origem\/destino)$/i.test(h) || h.includes('origem')),
         description: headers.findIndex(h =>
-            /^(descrição|descricao|description|histórico|historico|estabelecimento|titulo|título|memo|lançamento|lancamento)$/i.test(h) ||
+            /^(descri[çc][aã]o|description|hist[oó]rico|estabelecimento|t[ií]tulo|memo|lan[çc]amento)$/i.test(h) ||
             h.includes('descri') || h.includes('histor')
         ),
-        amount: headers.findIndex(h =>
-            /^(valor|amount|value|quantia|montante)$/i.test(h) ||
-            h.includes('valor')
-        )
+        amount: headers.findIndex(h => /^(valor|amount|value|quantia|montante)$/i.test(h) || h.includes('valor'))
     };
 
-    // Fallback: tenta inferir pelo índice se não encontrou
+    // Detecta se é formato PicPay (tem coluna 'tipo' e 'origem / destino')
+    const isPicPayFormat = columnMap.type !== -1 && columnMap.origin !== -1;
+
+    // Fallback genérico
     if (columnMap.date === -1) columnMap.date = 0;
-    if (columnMap.description === -1) columnMap.description = Math.min(1, headers.length - 1);
-    if (columnMap.amount === -1) columnMap.amount = Math.min(2, headers.length - 1);
+    if (columnMap.description === -1 && !isPicPayFormat) columnMap.description = Math.min(1, headers.length - 1);
+    if (columnMap.amount === -1) columnMap.amount = Math.min(headers.length - 1, isPicPayFormat ? 4 : 2);
 
     const results = [];
 
@@ -109,39 +159,27 @@ export function parseCSV(content) {
         const cols = line.split(delimiter).map(c => c.trim().replace(/^"|"$/g, ''));
 
         const rawDate = cols[columnMap.date] || '';
-        const description = cols[columnMap.description] || '';
-        const rawAmount = cols[columnMap.amount] || '0';
+        const parsedDate = parseDateFlexible(rawDate);
+        if (!parsedDate) continue;
 
-        // Parse da data (suporta DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY)
-        let parsedDate = '';
-        if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-            parsedDate = rawDate;
-        } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
-            const [d, m, y] = rawDate.split('/');
-            parsedDate = `${y}-${m}-${d}`;
-        } else if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
-            const [d, m, y] = rawDate.split('-');
-            parsedDate = `${y}-${m}-${d}`;
-        }
-
-        if (!parsedDate || !description) continue;
-
-        // Parse do valor (suporta "1.234,56" e "1234.56" e valores negativos)
-        let amount = 0;
-        const cleanedAmount = rawAmount.replace(/[^\d.,-]/g, '');
-        if (cleanedAmount.includes(',')) {
-            // Formato brasileiro: 1.234,56
-            amount = parseFloat(cleanedAmount.replace(/\./g, '').replace(',', '.'));
+        // Monta descrição: PicPay junta 'tipo' + 'origem/destino'; genérico usa coluna direta
+        let description = '';
+        if (isPicPayFormat) {
+            const tipo = (cols[columnMap.type] || '').trim();
+            const origem = (cols[columnMap.origin] || '').trim();
+            description = [tipo, origem].filter(Boolean).join(' - ');
         } else {
-            amount = parseFloat(cleanedAmount);
+            description = (cols[columnMap.description] || '').trim();
         }
+        if (!description) continue;
 
+        // Parse do valor usando cleanBRLValue (suporta '-R$ 1.500,50')
+        const rawAmount = cols[columnMap.amount] || '0';
+        let amount = cleanBRLValue(rawAmount);
         if (isNaN(amount)) continue;
 
-        // Determina se é entrada ou saída pelo sinal
         const type = amount < 0 ? 'expense' : 'income';
         amount = Math.abs(amount);
-
         if (amount === 0) continue;
 
         results.push({ date: parsedDate, description, amount, type });
@@ -187,53 +225,105 @@ export function parseExcelFile(data) {
 
     if (rows.length === 0) return [];
 
-    // Detecta colunas pelo nome dos cabeçalhos
+    // Detecta colunas pelo nome dos cabeçalhos (case-insensitive)
     const keys = Object.keys(rows[0]);
     const findKey = (patterns) => keys.find(k => patterns.some(p => p.test(k)));
 
-    const dateKey = findKey([/data/i, /date/i, /^dt$/i, /lan[çc]amento/i, /compra/i]) || keys[0];
-    const descKey = findKey([/descri/i, /histor/i, /t[ií]tulo/i, /memo/i, /lan[çc]amento/i, /estabelecimento/i]) || keys[Math.min(1, keys.length - 1)];
-    const amountKey = findKey([/valor/i, /amount/i, /value/i, /quantia/i, /montante/i]) || keys[Math.min(2, keys.length - 1)];
+    const dateKey = findKey([/^data$/i, /date/i, /^dt$/i, /lan[çc]amento/i, /compra/i]) || keys[0];
+    const timeKey = findKey([/^hora$/i]);
+    const typeKey = findKey([/^tipo$/i]);
+    const originKey = findKey([/origem/i, /destino/i]);
+    const descKey = findKey([/descri/i, /histor/i, /t[ií]tulo/i, /memo/i, /estabelecimento/i]);
+    const amountKey = findKey([/valor/i, /amount/i, /value/i, /quantia/i, /montante/i]) || keys[keys.length - 1];
+
+    // Detecta se é formato PicPay (tem coluna 'tipo' e 'origem / destino')
+    const isPicPayFormat = !!typeKey && !!originKey;
 
     const results = [];
 
     for (const row of rows) {
-        const rawDate = row[dateKey];
-        const description = String(row[descKey] || '').trim();
-        const rawAmount = row[amountKey];
+        // --- Data ---
+        const parsedDate = parseDateFlexible(row[dateKey]);
+        if (!parsedDate) continue;
 
-        // Parse da data (Date object do SheetJS, ou strings em vários formatos)
-        let parsedDate = '';
-        if (rawDate instanceof Date && !isNaN(rawDate)) {
-            parsedDate = rawDate.toISOString().split('T')[0];
-        } else {
-            const dateStr = String(rawDate || '');
-            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-                parsedDate = dateStr.substring(0, 10);
-            } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-                const [d, m, y] = dateStr.split('/');
-                parsedDate = `${y}-${m}-${d}`;
-            } else if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
-                const [d, m, y] = dateStr.split('-');
-                parsedDate = `${y}-${m}-${d}`;
-            }
+        // --- Descrição ---
+        let description = '';
+        if (isPicPayFormat) {
+            const tipo = String(row[typeKey] || '').trim();
+            const origem = String(row[originKey] || '').trim();
+            description = [tipo, origem].filter(Boolean).join(' - ');
+        } else if (descKey) {
+            description = String(row[descKey] || '').trim();
         }
+        if (!description) continue;
 
-        if (!parsedDate || !description) continue;
+        // --- Valor (usa cleanBRLValue para '-R$ 1.500,50' etc.) ---
+        let amount = cleanBRLValue(row[amountKey]);
+        if (isNaN(amount)) continue;
 
-        // Parse do valor (número direto do Excel, ou string formatada)
-        let amount = 0;
-        if (typeof rawAmount === 'number') {
-            amount = rawAmount;
-        } else {
-            const cleaned = String(rawAmount).replace(/[^\d.,-]/g, '');
-            if (cleaned.includes(',')) {
-                amount = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
-            } else {
-                amount = parseFloat(cleaned);
-            }
+        const type = amount < 0 ? 'expense' : 'income';
+        amount = Math.abs(amount);
+        if (amount === 0) continue;
+
+        results.push({ date: parsedDate, description, amount, type });
+    }
+
+    return results;
+}
+
+/**
+ * Faz o parse de um conteúdo OFX/QFX em um array padronizado de transações.
+ * Suporta blocos <STMTTRN> com tags como DTPOSTED, TRNAMT, MEMO, NAME.
+ * @param {string} content - O conteúdo bruto do arquivo OFX.
+ * @returns {Array<object>} Array de objetos com { date, description, amount, type }.
+ */
+export function parseOFX(content) {
+    const normalized = content.replace(/\r\n/g, '\n');
+    const results = [];
+
+    const blocks = [];
+    const blockRegex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+    let match;
+    while ((match = blockRegex.exec(normalized)) !== null) {
+        blocks.push(match[1]);
+    }
+
+    if (blocks.length === 0 && /<STMTTRN>/i.test(normalized)) {
+        const parts = normalized.split(/<STMTTRN>/i).slice(1);
+        for (const part of parts) {
+            blocks.push(part);
         }
+    }
 
+    const getTagValue = (block, tag) => {
+        const tagRegex = new RegExp(`<${tag}>([^<\n\r]*)`, 'i');
+        const tagMatch = block.match(tagRegex);
+        return tagMatch ? tagMatch[1].trim() : '';
+    };
+
+    const parseOFXDate = (raw) => {
+        const matchDate = String(raw || '').match(/(\d{8})/);
+        if (!matchDate) return '';
+        const dateStr = matchDate[1];
+        const y = dateStr.slice(0, 4);
+        const m = dateStr.slice(4, 6);
+        const d = dateStr.slice(6, 8);
+        return `${y}-${m}-${d}`;
+    };
+
+    for (const block of blocks) {
+        const rawDate = getTagValue(block, 'DTPOSTED') || getTagValue(block, 'DTUSER');
+        const rawAmount = getTagValue(block, 'TRNAMT');
+        const memo = getTagValue(block, 'MEMO');
+        const name = getTagValue(block, 'NAME');
+        const payee = getTagValue(block, 'PAYEE');
+
+        const parsedDate = parseOFXDate(rawDate);
+        const description = memo || name || payee;
+        if (!parsedDate || !description || !rawAmount) continue;
+
+        const cleanedAmount = String(rawAmount).replace(/[^\d.,-]/g, '').replace(',', '.');
+        let amount = parseFloat(cleanedAmount);
         if (isNaN(amount)) continue;
 
         const type = amount < 0 ? 'expense' : 'income';
@@ -334,10 +424,10 @@ export function initCSVImportUI(callbacks) {
         if (!file) return;
 
         const ext = file.name.split('.').pop().toLowerCase();
-        const validExtensions = ['csv', 'xls', 'xlsx'];
+        const validExtensions = ['csv', 'xls', 'xlsx', 'ofx', 'qfx'];
 
         if (!validExtensions.includes(ext)) {
-            showToast('Formato não suportado. Use arquivos .csv, .xls ou .xlsx.', 'error');
+            showToast('Formato não suportado. Use arquivos .csv, .xls, .xlsx, .ofx ou .qfx.', 'error');
             return;
         }
 
@@ -350,6 +440,13 @@ export function initCSVImportUI(callbacks) {
                 finalizeFileParsing();
             };
             reader.readAsArrayBuffer(file);
+        } else if (ext === 'ofx' || ext === 'qfx') {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentParsedData = parseOFX(e.target.result);
+                finalizeFileParsing();
+            };
+            reader.readAsText(file, 'UTF-8');
         } else {
             // CSV: lê como texto e usa o parser manual
             const reader = new FileReader();

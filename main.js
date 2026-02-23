@@ -107,6 +107,7 @@ function rerenderUI() {
     ui.updateInvestmentsTable(state.investments, tableCallbacks);
     ui.updateHoursTable(state.timeEntries.filter(t => new Date(t.date + 'T00:00:00') >= overtimeRange.startDate && new Date(t.date + 'T00:00:00') <= overtimeRange.endDate), tableCallbacks);
     ui.updateRecurringItemsTable(state.recurringIncomes, state.recurringExpenses, state.settings.expenseCategories, tableCallbacks);
+    ui.renderTransactionsFeed(state.incomes, state.expenses, state.settings.expenseCategories);
     
     if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
         handleGenerateReport();
@@ -282,7 +283,7 @@ async function handleSaveTimeEntry() {
     if (saved) {
         // Limpa o formulário e o modo de edição
         document.getElementById('add-hour-entry-btn').removeAttribute('data-id');
-        document.getElementById('add-hour-entry-btn').textContent = 'Adicionar';
+        document.getElementById('add-hour-entry-btn').innerHTML = '<i class="fas fa-plus" style="margin-right:0.5rem;"></i>Adicionar';
         document.getElementById('cancel-hour-edit-btn').classList.add('hidden');
         
         // Limpa os campos do formulário de horas
@@ -357,12 +358,67 @@ async function handleSaveSettings() {
         payPeriodStartDay: parseInt(document.getElementById('setting-start-day').value) || 1,
         overtimeStartDay: parseInt(document.getElementById('setting-overtime-start-day').value) || 24,
         overtimeEndDay: parseInt(document.getElementById('setting-overtime-end-day').value) || 23,
+        workEntry: document.getElementById('setting-work-entry').value || '08:00',
+        workBreakStart: document.getElementById('setting-work-break-start').value || '12:00',
+        workBreakEnd: document.getElementById('setting-work-break-end').value || '13:00',
+        workExit: document.getElementById('setting-work-exit').value || '17:00',
     };
     const success = await db.saveUserSettings(firestoreDB, state.currentUser, newSettings);
     if (success) {
         state.settings = { ...state.settings, ...newSettings };
+        updateQuickFillHint();
+        const fb = document.getElementById('settings-feedback');
+        fb.textContent = 'Configurações salvas com sucesso!';
+        fb.className = 'text-sm mt-2 text-center text-green-500';
+        setTimeout(() => fb.textContent = '', 3000);
         await updateDashboard();
     }
+}
+
+function updateQuickFillHint() {
+    const entry = state.settings.workEntry || '08:00';
+    const exit = state.settings.workExit || '17:00';
+    const hintEl = document.getElementById('qf-standard-hint');
+    if (hintEl) {
+        hintEl.textContent = `${entry.replace(':','h')} – ${exit.replace(':','h')}`;
+    }
+}
+
+function loadSettingsToUI() {
+    document.getElementById('setting-start-day').value = state.settings.payPeriodStartDay || 1;
+    document.getElementById('setting-overtime-start-day').value = state.settings.overtimeStartDay || 24;
+    document.getElementById('setting-overtime-end-day').value = state.settings.overtimeEndDay || 23;
+    document.getElementById('setting-work-entry').value = state.settings.workEntry || '08:00';
+    document.getElementById('setting-work-break-start').value = state.settings.workBreakStart || '12:00';
+    document.getElementById('setting-work-break-end').value = state.settings.workBreakEnd || '13:00';
+    document.getElementById('setting-work-exit').value = state.settings.workExit || '17:00';
+    updateQuickFillHint();
+}
+
+// --- Theme Color Engine ---
+function applyThemeColor(color) {
+    const root = document.documentElement;
+    root.style.setProperty('--accent', color);
+    // Generate lighter variant for hover
+    root.style.setProperty('--accent-hover', color);
+    // Light accent background
+    const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+    root.style.setProperty('--accent-light', `rgba(${r},${g},${b},0.08)`);
+    root.style.setProperty('--accent-text', color);
+    // Dark mode variants
+    const lighter = `rgba(${Math.min(r+60,255)},${Math.min(g+60,255)},${Math.min(b+60,255)},1)`;
+    root.style.setProperty('--sidebar-active-text', lighter);
+    root.style.setProperty('--sidebar-active-bg', `rgba(${r},${g},${b},0.12)`);
+    // Mark active swatch
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    const match = document.querySelector(`.color-swatch[data-color="${color}"]`);
+    if (match) match.classList.add('active');
+    localStorage.setItem('themeColor', color);
+}
+
+function initThemeColor() {
+    const saved = localStorage.getItem('themeColor');
+    if (saved) applyThemeColor(saved);
 }
 
 async function handlePasswordChange() {
@@ -475,21 +531,42 @@ window.addEventListener('click', () => {
     document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
     document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
 
-    // Period navigator arrows
-    document.getElementById('period-prev-btn').addEventListener('click', () => {
-        state.currentMonth--;
-        if (state.currentMonth < 1) { state.currentMonth = 12; state.currentYear--; }
-        syncPeriodSelects();
-        updatePeriodLabel();
-        updateDashboard();
-    });
-    document.getElementById('period-next-btn').addEventListener('click', () => {
-        state.currentMonth++;
-        if (state.currentMonth > 12) { state.currentMonth = 1; state.currentYear++; }
-        syncPeriodSelects();
-        updatePeriodLabel();
-        updateDashboard();
-    });
+    // Period navigator arrows with carousel animation
+    function navigateMonth(direction) {
+        const contentArea = document.getElementById('content-area');
+        const outClass = direction === 'next' ? 'carousel-slide-out-left' : 'carousel-slide-out-right';
+        const inClass  = direction === 'next' ? 'carousel-slide-in-left' : 'carousel-slide-in-right';
+
+        // Slide out
+        contentArea.classList.add(outClass);
+
+        contentArea.addEventListener('animationend', function handler() {
+            contentArea.removeEventListener('animationend', handler);
+            contentArea.classList.remove(outClass);
+
+            // Update month
+            if (direction === 'next') {
+                state.currentMonth++;
+                if (state.currentMonth > 12) { state.currentMonth = 1; state.currentYear++; }
+            } else {
+                state.currentMonth--;
+                if (state.currentMonth < 1) { state.currentMonth = 12; state.currentYear--; }
+            }
+            syncPeriodSelects();
+            updatePeriodLabel();
+            updateDashboard();
+
+            // Slide in
+            contentArea.classList.add(inClass);
+            contentArea.addEventListener('animationend', function handler2() {
+                contentArea.removeEventListener('animationend', handler2);
+                contentArea.classList.remove(inClass);
+            });
+        });
+    }
+
+    document.getElementById('period-prev-btn').addEventListener('click', () => navigateMonth('prev'));
+    document.getElementById('period-next-btn').addEventListener('click', () => navigateMonth('next'));
 
     document.getElementById('privacy-toggle-btn').addEventListener('click', () => { utils.togglePrivacyMode(); ui.updatePrivacyButton(utils.initPrivacyMode()); rerenderUI(); });
     document.getElementById('theme-toggle-btn').addEventListener('click', () => { ui.toggleTheme(); rerenderUI(); });
@@ -506,7 +583,46 @@ window.addEventListener('click', () => {
     document.getElementById('add-goal-btn').addEventListener('click', () => ui.showEditModal('goal', null, state));
     document.getElementById('add-investment-btn').addEventListener('click', () => ui.showEditModal('investment', null, state));
     document.getElementById('add-hour-entry-btn').addEventListener('click', handleSaveTimeEntry);
-    
+
+    // --- Listeners dos Quick Fill Pills (Horas Extras) ---
+    function applyQuickFill(preset) {
+        const entry      = document.getElementById('hour-entry');
+        const breakStart = document.getElementById('hour-break-start');
+        const breakEnd   = document.getElementById('hour-break-end');
+        const exit       = document.getElementById('hour-exit');
+
+        const presets = {
+            standard: {
+                entry: state.settings.workEntry || '08:00',
+                breakStart: state.settings.workBreakStart || '12:00',
+                breakEnd: state.settings.workBreakEnd || '13:00',
+                exit: state.settings.workExit || '17:00'
+            },
+            nobreak:  { entry: entry.value || '08:00', breakStart: '', breakEnd: '', exit: exit.value || '17:00' },
+            night:    { entry: '22:00', breakStart: '02:00', breakEnd: '03:00', exit: '05:00' }
+        };
+
+        const p = presets[preset];
+        if (!p) return;
+        entry.value      = p.entry;
+        breakStart.value = p.breakStart;
+        breakEnd.value   = p.breakEnd;
+        exit.value       = p.exit;
+
+        // Feedback visual: destaca o pill ativo
+        document.querySelectorAll('.quickfill-btn').forEach(b => b.classList.remove('active'));
+        const activeBtn = document.querySelector(`.quickfill-btn[data-preset="${preset}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            // Remove o estado ativo após 2s
+            setTimeout(() => activeBtn.classList.remove('active'), 2000);
+        }
+    }
+
+    document.querySelectorAll('.quickfill-btn').forEach(btn => {
+        btn.addEventListener('click', () => applyQuickFill(btn.dataset.preset));
+    });
+
     // --- Listeners para Itens Fixos ---
     document.getElementById('add-recurring-income-btn').addEventListener('click', () => ui.showEditModal('recurringIncome', null, state));
     document.getElementById('add-recurring-expense-btn').addEventListener('click', () => ui.showEditModal('recurringExpense', null, state));
@@ -520,6 +636,45 @@ window.addEventListener('click', () => {
     document.getElementById('save-settings-btn').addEventListener('click', handleSaveSettings);
     document.getElementById('save-password-btn').addEventListener('click', handlePasswordChange);
     document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
+
+    // --- Theme Color Picker ---
+    document.querySelectorAll('.color-swatch[data-color]').forEach(swatch => {
+        swatch.addEventListener('click', () => applyThemeColor(swatch.dataset.color));
+    });
+    document.getElementById('custom-theme-color').addEventListener('input', (e) => applyThemeColor(e.target.value));
+
+    // --- App Guide Modal ---
+    document.getElementById('app-guide-btn').addEventListener('click', () => ui.openModal('app-guide-modal'));
+    document.getElementById('close-guide-modal').addEventListener('click', () => ui.closeModal('app-guide-modal'));
+
+    // --- Transaction Filter Pills ---
+    document.querySelectorAll('.tx-filter-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.tx-filter-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const filter = pill.dataset.filter;
+            document.querySelectorAll('#tx-feed .tx-row').forEach(row => {
+                if (filter === 'all') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = row.dataset.txType === filter ? '' : 'none';
+                }
+            });
+        });
+    });
+
+    // --- Cancel Hour Edit ---
+    document.getElementById('cancel-hour-edit-btn').addEventListener('click', () => {
+        const addBtn = document.getElementById('add-hour-entry-btn');
+        addBtn.removeAttribute('data-id');
+        addBtn.innerHTML = '<i class="fas fa-plus" style="margin-right:0.5rem;"></i>Adicionar';
+        document.getElementById('cancel-hour-edit-btn').classList.add('hidden');
+        document.getElementById('hour-entry').value = '';
+        document.getElementById('hour-break-start').value = '';
+        document.getElementById('hour-break-end').value = '';
+        document.getElementById('hour-exit').value = '';
+        document.getElementById('hour-is-holiday').checked = false;
+    });
 
     // --- Listeners do Modal de Contribuição ---
     document.getElementById('save-contribution').addEventListener('click', handleSaveContribution);
@@ -543,7 +698,74 @@ window.addEventListener('click', () => {
         const cancelBtn = document.getElementById(`cancel-${baseType}`);
         if (cancelBtn) cancelBtn.addEventListener('click', () => ui.closeModal(`${baseType}-modal`));
     });
-    
+
+    // --- Date Pills lógica (modal de Despesa) ---
+    (function setupExpenseDatePills() {
+        const pills      = document.querySelectorAll('#expense-modal .em-date-pill');
+        const dateInput  = document.getElementById('expense-date');
+        if (!pills.length || !dateInput) return;
+
+        function todayStr(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() - offsetDays);
+            return d.toISOString().split('T')[0];
+        }
+
+        function setActivePill(clickedPill) {
+            pills.forEach(p => p.classList.remove('active'));
+            clickedPill.classList.add('active');
+        }
+
+        // Set today's date on load
+        dateInput.value = todayStr(0);
+
+        pills.forEach(pill => {
+            pill.addEventListener('click', () => {
+                const days = parseInt(pill.dataset.days, 10);
+
+                if (days === -1) {
+                    // "Outros..." — reveal native date picker
+                    setActivePill(pill);
+                    dateInput.classList.add('visible');
+                    dateInput.showPicker?.();
+                } else {
+                    // Hoje (0) or Ontem (1)
+                    setActivePill(pill);
+                    dateInput.value = todayStr(days);
+                    dateInput.classList.remove('visible');
+                }
+            });
+        });
+
+        // When user picks a custom date, keep "Outros..." highlighted
+        dateInput.addEventListener('change', () => {
+            // ensure "Outros..." pill stays active when a date is manually picked
+            const outrosPill = document.querySelector('#expense-modal .em-date-outros');
+            if (outrosPill) setActivePill(outrosPill);
+        });
+
+        // Reset pills whenever the expense modal opens
+        document.getElementById('close-expense-modal')?.addEventListener('click', resetDatePills);
+        document.getElementById('cancel-expense')?.addEventListener('click', resetDatePills);
+
+        function resetDatePills() {
+            pills.forEach(p => p.classList.remove('active'));
+            const todayPill = document.querySelector('#expense-modal .em-date-pill[data-days="0"]');
+            if (todayPill) todayPill.classList.add('active');
+            dateInput.value = todayStr(0);
+            dateInput.classList.remove('visible');
+        }
+    })();
+
+    // --- Flip Cards: mobile tap toggle ---
+    document.querySelectorAll('.flip-card').forEach(card => {
+        card.addEventListener('click', () => {
+            if (window.innerWidth < 768) {
+                card.classList.toggle('flipped');
+            }
+        });
+    });
+
     // --- Listener de Navegação por Abas ---
     document.querySelectorAll('.tab-btn').forEach(button => {
         button.addEventListener('click', function() {
@@ -575,10 +797,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('main-container').style.display = 'flex';
             
             await updateDashboard();
+            initThemeColor();
+            loadSettingsToUI();
             
             const userName = user.displayName || user.email || 'Usuário';
             document.getElementById('header-subtitle').textContent = state.settings.headerSubtitle || userName;
-            document.getElementById('welcome-message').textContent = `Bem-vindo(a) à sua planilha, ${userName}!`;
+            document.getElementById('welcome-message').innerHTML = `Bem-vindo(a), <strong>${userName}</strong>`;
             document.getElementById('user-email-display').textContent = user.email;
             
             ui.populateYearDropdown();

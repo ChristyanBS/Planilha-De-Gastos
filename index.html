@@ -14,6 +14,9 @@
     </script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <style>
@@ -37,6 +40,7 @@
         <button data-tab="dashboard" class="tab-btn sidebar-btn"><i class="fas fa-chart-line"></i> Dashboard</button>
         
         <span class="sidebar-section-label">Transações</span>
+        <button data-tab="transactions" class="tab-btn sidebar-btn"><i class="fas fa-arrow-right-arrow-left"></i> Visão Mensal</button>
         <button data-tab="income" class="tab-btn sidebar-btn"><i class="fas fa-hand-holding-dollar"></i> Renda</button>
         <button data-tab="expenses" class="tab-btn sidebar-btn"><i class="fas fa-receipt"></i> Despesas</button>
         <button data-tab="hours" class="tab-btn sidebar-btn"><i class="fas fa-clock"></i> Horas Extras</button>
@@ -64,7 +68,7 @@
       <div id="top-bar" class="no-print">
         <div class="topbar-left">
           <button id="mobile-sidebar-toggle"><i class="fas fa-bars"></i></button>
-          <p id="welcome-message" style="margin:0;font-size:0.85rem;color:var(--text-secondary);"></p>
+          <p id="welcome-message"></p>
         </div>
         <div class="topbar-center">
           <button id="period-prev-btn" class="period-nav-btn" title="Mês anterior"><i class="fas fa-chevron-left"></i></button>
@@ -72,6 +76,7 @@
           <button id="period-next-btn" class="period-nav-btn" title="Próximo mês"><i class="fas fa-chevron-right"></i></button>
         </div>
         <div class="topbar-right">
+          <button id="app-guide-btn" class="topbar-btn" title="Guia do App"><i class="fas fa-question-circle"></i></button>
           <!-- Hidden selects kept for JS compatibility -->
           <select id="month-select" class="sr-only" aria-hidden="true">
             <option value="1">Janeiro</option><option value="2">Fevereiro</option>
@@ -100,25 +105,55 @@
         <!-- ===== DASHBOARD TAB ===== -->
         <div id="dashboard-content" class="tab-content">
           <div class="summary-cards">
-            <div class="summary-card income">
-              <div class="card-icon"><i class="fas fa-arrow-up"></i></div>
-              <div class="card-body">
-                <div class="card-label">Entradas</div>
-                <div class="card-value" id="total-income">R$ 0,00</div>
+            <!-- Flip Card: Income -->
+            <div class="flip-card">
+              <div class="flip-card-inner">
+                <div class="flip-card-front summary-card income">
+                  <div class="card-icon"><i class="fas fa-arrow-up"></i></div>
+                  <div class="card-body">
+                    <div class="card-label">Entradas</div>
+                    <div class="card-value" id="total-income">R$ 0,00</div>
+                  </div>
+                </div>
+                <div class="flip-card-back income-back">
+                  <i class="fas fa-chart-line flip-back-icon"></i>
+                  <span class="flip-back-text">Detalhes na aba Renda</span>
+                  <span class="flip-back-hint">Passe o mouse para voltar</span>
+                </div>
               </div>
             </div>
-            <div class="summary-card expense">
-              <div class="card-icon"><i class="fas fa-arrow-down"></i></div>
-              <div class="card-body">
-                <div class="card-label">Saídas</div>
-                <div class="card-value" id="total-expenses">R$ 0,00</div>
+            <!-- Flip Card: Expense -->
+            <div class="flip-card">
+              <div class="flip-card-inner">
+                <div class="flip-card-front summary-card expense">
+                  <div class="card-icon"><i class="fas fa-arrow-down"></i></div>
+                  <div class="card-body">
+                    <div class="card-label">Saídas</div>
+                    <div class="card-value" id="total-expenses">R$ 0,00</div>
+                  </div>
+                </div>
+                <div class="flip-card-back expense-back">
+                  <i class="fas fa-receipt flip-back-icon"></i>
+                  <span class="flip-back-text">Detalhes na aba Despesas</span>
+                  <span class="flip-back-hint">Passe o mouse para voltar</span>
+                </div>
               </div>
             </div>
-            <div class="summary-card balance">
-              <div class="card-icon"><i class="fas fa-wallet"></i></div>
-              <div class="card-body">
-                <div class="card-label">Saldo Total</div>
-                <div class="card-value" id="available-balance">R$ 0,00</div>
+            <!-- Flip Card: Balance -->
+            <div class="flip-card">
+              <div class="flip-card-inner">
+                <div class="flip-card-front summary-card balance">
+                  <div class="card-icon"><i class="fas fa-wallet"></i></div>
+                  <div class="card-body">
+                    <div class="card-label">Saldo Total</div>
+                    <div class="card-value" id="available-balance">R$ 0,00</div>
+                  </div>
+                </div>
+                <div class="flip-card-back balance-back">
+                  <i class="fas fa-shield-halved flip-back-icon"></i>
+                  <span class="flip-back-text">Saúde financeira</span>
+                  <span class="flip-back-hint">Passe o mouse para voltar</span>
+                </div>
               </div>
             </div>
           </div>
@@ -152,6 +187,42 @@
           <p id="date-range-display" class="period-range-text"></p>
         </div>
         
+        <!-- ===== TRANSACTIONS TAB (Visão Mensal) ===== -->
+        <div id="transactions-content" class="tab-content hidden">
+            <div class="panel-header">
+                <h3><i class="fas fa-arrow-right-arrow-left" style="color:var(--accent);margin-right:0.5rem;"></i>Visão Mensal de Transações</h3>
+            </div>
+            <!-- Summary Mini Cards -->
+            <div class="tx-summary-strip">
+                <div class="tx-summary-card tx-income">
+                    <div class="tx-summary-icon"><i class="fas fa-arrow-up"></i></div>
+                    <div><div class="tx-summary-label">Receitas</div><div class="tx-summary-value" id="tx-total-income">R$ 0,00</div></div>
+                </div>
+                <div class="tx-summary-card tx-expense">
+                    <div class="tx-summary-icon"><i class="fas fa-arrow-down"></i></div>
+                    <div><div class="tx-summary-label">Despesas</div><div class="tx-summary-value" id="tx-total-expense">R$ 0,00</div></div>
+                </div>
+                <div class="tx-summary-card tx-balance">
+                    <div class="tx-summary-icon"><i class="fas fa-scale-balanced"></i></div>
+                    <div><div class="tx-summary-label">Balanço</div><div class="tx-summary-value" id="tx-balance">R$ 0,00</div></div>
+                </div>
+            </div>
+            <!-- Filter pills -->
+            <div class="tx-filter-bar">
+                <button class="tx-filter-pill active" data-filter="all"><i class="fas fa-layer-group"></i> Todas</button>
+                <button class="tx-filter-pill" data-filter="income"><i class="fas fa-arrow-up"></i> Receitas</button>
+                <button class="tx-filter-pill" data-filter="expense"><i class="fas fa-arrow-down"></i> Despesas</button>
+            </div>
+            <!-- Grouped by day list -->
+            <div id="tx-feed" class="tx-feed">
+                <!-- Populated by JS -->
+                <div class="tx-empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>Nenhuma transação no período.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== INCOME TAB ===== -->
             <div id="income-content" class="tab-content hidden">
                 <div class="panel-header">
@@ -251,27 +322,66 @@
             <p id="hours-period-display" class="panel-subtitle"></p>
         </div>
     </div>
-    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg mb-6">
-       <div class="grid grid-cols-1 md:grid-cols-8 gap-4 items-end">
-    <div class="md:col-span-2">
-        <label for="hour-date" class="block text-sm font-medium">Data</label>
-        <input type="date" id="hour-date" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-    </div>
-    <div><label for="hour-entry" class="block text-sm font-medium">Entrada</label><input type="time" id="hour-entry" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-    <div><label for="hour-break-start" class="block text-sm font-medium">Início Intervalo</label><input type="time" id="hour-break-start" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-    <div><label for="hour-break-end" class="block text-sm font-medium">Fim Intervalo</label><input type="time" id="hour-break-end" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-    <div><label for="hour-exit" class="block text-sm font-medium">Saída</label><input type="time" id="hour-exit" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-    
-    <div class="flex items-center justify-start pb-2">
-        <input id="hour-is-holiday" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-        <label for="hour-is-holiday" class="ml-2 block text-sm">É 100%?</label>
-    </div>
 
-    <div class="flex items-end space-x-2">
-        <button id="add-hour-entry-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i>Adicionar</button>
-        <button id="cancel-hour-edit-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">Cancelar</button>
-    </div>
-</div>
+    <!-- Clean Hour Entry Form (Icon-driven, matching expense modal) -->
+    <div class="hours-clean-form">
+       <!-- Quick Fill Pills -->
+       <div class="quickfill-area">
+           <span class="quickfill-label">Preencher rápido:</span>
+           <button type="button" class="quickfill-btn" data-preset="standard">
+               <span class="quickfill-icon">🏢</span> Jornada Padrão <span class="quickfill-hint" id="qf-standard-hint">08h – 17h</span>
+           </button>
+           <button type="button" class="quickfill-btn" data-preset="nobreak">
+               <span class="quickfill-icon">⚡</span> Pular Intervalo
+           </button>
+           <button type="button" class="quickfill-btn" data-preset="night">
+               <span class="quickfill-icon">🌙</span> Turno da Noite <span class="quickfill-hint">22h – 05h</span>
+           </button>
+       </div>
+
+       <!-- Date Row -->
+       <div class="hf-row">
+           <i class="fas fa-calendar-alt hf-row-icon"></i>
+           <input type="date" id="hour-date" class="hf-row-input">
+       </div>
+       <!-- Entry Row -->
+       <div class="hf-row">
+           <i class="fas fa-sign-in-alt hf-row-icon"></i>
+           <label class="hf-row-label">Entrada</label>
+           <input type="time" id="hour-entry" class="hf-row-input">
+       </div>
+       <!-- Break Start Row -->
+       <div class="hf-row">
+           <i class="fas fa-coffee hf-row-icon"></i>
+           <label class="hf-row-label">Início Intervalo</label>
+           <input type="time" id="hour-break-start" class="hf-row-input">
+       </div>
+       <!-- Break End Row -->
+       <div class="hf-row">
+           <i class="fas fa-utensils hf-row-icon"></i>
+           <label class="hf-row-label">Fim Intervalo</label>
+           <input type="time" id="hour-break-end" class="hf-row-input">
+       </div>
+       <!-- Exit Row -->
+       <div class="hf-row">
+           <i class="fas fa-sign-out-alt hf-row-icon"></i>
+           <label class="hf-row-label">Saída</label>
+           <input type="time" id="hour-exit" class="hf-row-input">
+       </div>
+       <!-- Holiday Toggle Row -->
+       <div class="hf-row hf-toggle-row">
+           <i class="fas fa-star hf-row-icon"></i>
+           <span class="hf-row-label">É 100% (Feriado/Domingo)?</span>
+           <label class="em-toggle-switch">
+               <input type="checkbox" id="hour-is-holiday" class="em-toggle-input">
+               <span class="em-toggle-slider"></span>
+           </label>
+       </div>
+       <!-- Action Buttons -->
+       <div class="hf-actions">
+           <button id="cancel-hour-edit-btn" class="hidden em-btn-cancel">Cancelar</button>
+           <button id="add-hour-entry-btn" class="em-btn-save"><i class="fas fa-plus" style="margin-right:0.5rem;"></i>Adicionar</button>
+       </div>
     </div>
     <div class="mini-cards cols-3">
         <div class="mini-card"><div class="mini-label">Horas Trabalhadas (Período)</div><div class="mini-value" id="total-worked-hours">0h 0m</div></div>
@@ -338,10 +448,10 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-4">
-                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" inputmode="decimal" id="calc-base-salary" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 3500,00"></div>
+                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" inputmode="decimal" id="calc-base-salary" class="form-input mt-1" placeholder="Ex: 3500,00"></div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label for="calc-workload" class="block text-sm font-medium">Carga Horária (mês)</label><input type="number" id="calc-workload" value="220" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
-                            <div><label for="calc-dependents" class="block text-sm font-medium">Dependentes</label><input type="number" id="calc-dependents" value="0" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div><label for="calc-workload" class="block text-sm font-medium">Carga Horária (mês)</label><input type="number" id="calc-workload" value="220" class="form-input mt-1"></div>
+                            <div><label for="calc-dependents" class="block text-sm font-medium">Dependentes</label><input type="number" id="calc-dependents" value="0" class="form-input mt-1"></div>
                         </div>
                         <div class="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
                             <div><label class="block text-sm font-medium">H. Extras 50% (Período)</label><p id="calc-ot-50-display" class="font-bold mt-1">0h 0m</p></div>
@@ -352,17 +462,17 @@
                             <div>
                                 <h4 class="font-semibold mb-2">Outros Proventos</h4>
                                 <div id="custom-proventos-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" inputmode="decimal" id="new-provento-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
+                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="form-input" style="width:66%;" placeholder="Nome"><input type="text" inputmode="decimal" id="new-provento-value" class="form-input" style="width:34%;" placeholder="Valor"></div>
                                 <button id="add-provento-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Provento</button>
                             </div>
                             <div>
                                 <h4 class="font-semibold mb-2">Outros Descontos</h4>
                                 <div id="custom-discounts-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="w-2/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome"><input type="text" inputmode="decimal" id="new-discount-value" class="w-1/3 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Valor"></div>
+                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="form-input" style="width:66%;" placeholder="Nome"><input type="text" inputmode="decimal" id="new-discount-value" class="form-input" style="width:34%;" placeholder="Valor"></div>
                                 <button id="add-discount-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Desconto</button>
                             </div>
                         </div>
-                        <button id="calculate-salary-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">Calcular</button>
+                        <button id="calculate-salary-btn" class="em-btn-save" style="width:100%;padding:0.75rem;">Calcular</button>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-2">
                         <h4 class="text-lg font-semibold text-center mb-4">Holerite</h4>
@@ -402,47 +512,119 @@
             </div>
             <div id="account-content" class="tab-content hidden">
     <div class="panel-header">
-        <h3>Gerenciar Conta</h3>
-    </div>
-    <div class="bg-gray-50 dark:bg-gray-900/60 p-4 rounded-lg">
-        <p class="text-gray-600 dark:text-gray-300">Você está logado com o email:</p>
-        <p id="user-email-display" class="text-lg font-bold text-indigo-700 dark:text-indigo-200"></p>
+        <h3>Minha Conta & Configurações</h3>
     </div>
 
-    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h4 class="text-lg font-medium">Configurações do Período</h4>
-        <p class="text-sm text-gray-500 mt-1">Defina o dia em que seu período de pagamento começa. Use '1' para um mês de calendário padrão (ex: 01/Jan a 31/Jan).</p>
-        <div class="mt-4 max-w-sm flex items-center gap-4">
-            <div>
-                <label for="setting-start-day" class="block text-sm font-medium mb-1">Dia de Início (1-28)</label>
-                <input type="number" id="setting-start-day" min="1" max="28" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            </div>
-            <button id="save-settings-btn" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Salvar</button>
+    <!-- User Info -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-user-circle"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Perfil</h4>
+            <p class="settings-section-desc">Você está logado com o email:</p>
+            <p id="user-email-display" class="text-lg font-bold" style="color:var(--accent);"></p>
         </div>
+    </div>
+
+    <!-- Theme Color Picker -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-palette"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Cor do Tema</h4>
+            <p class="settings-section-desc">Escolha a cor principal do app. Muda botões, gráficos e destaques em tempo real.</p>
+            <div class="theme-color-picker">
+                <button class="color-swatch" data-color="#4f46e5" style="background:#4f46e5;" title="Indigo"></button>
+                <button class="color-swatch" data-color="#7c3aed" style="background:#7c3aed;" title="Violet"></button>
+                <button class="color-swatch" data-color="#2563eb" style="background:#2563eb;" title="Blue"></button>
+                <button class="color-swatch" data-color="#0891b2" style="background:#0891b2;" title="Cyan"></button>
+                <button class="color-swatch" data-color="#059669" style="background:#059669;" title="Emerald"></button>
+                <button class="color-swatch" data-color="#d97706" style="background:#d97706;" title="Amber"></button>
+                <button class="color-swatch" data-color="#dc2626" style="background:#dc2626;" title="Red"></button>
+                <button class="color-swatch" data-color="#db2777" style="background:#db2777;" title="Pink"></button>
+                <input type="color" id="custom-theme-color" class="color-swatch-custom" value="#4f46e5" title="Cor personalizada">
+            </div>
+        </div>
+    </div>
+
+    <!-- Work Schedule Settings -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-business-time"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Jornada de Trabalho Padrão</h4>
+            <p class="settings-section-desc">Defina seus horários padrão. O botão "Jornada Padrão" nas Horas Extras usará esses valores.</p>
+            <div class="work-schedule-grid">
+                <div class="hf-row">
+                    <i class="fas fa-sign-in-alt hf-row-icon"></i>
+                    <label class="hf-row-label">Entrada</label>
+                    <input type="time" id="setting-work-entry" class="hf-row-input" value="08:00">
+                </div>
+                <div class="hf-row">
+                    <i class="fas fa-coffee hf-row-icon"></i>
+                    <label class="hf-row-label">Início Pausa</label>
+                    <input type="time" id="setting-work-break-start" class="hf-row-input" value="12:00">
+                </div>
+                <div class="hf-row">
+                    <i class="fas fa-utensils hf-row-icon"></i>
+                    <label class="hf-row-label">Fim Pausa</label>
+                    <input type="time" id="setting-work-break-end" class="hf-row-input" value="13:00">
+                </div>
+                <div class="hf-row">
+                    <i class="fas fa-sign-out-alt hf-row-icon"></i>
+                    <label class="hf-row-label">Saída</label>
+                    <input type="time" id="setting-work-exit" class="hf-row-input" value="17:00">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period Settings -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-calendar-alt"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Configurações do Período</h4>
+            <p class="settings-section-desc">Defina o dia em que seu período de pagamento começa. Use '1' para um mês de calendário padrão.</p>
+            <div class="mt-3 max-w-xs">
+                <label for="setting-start-day" class="block text-sm font-medium mb-1">Dia de Início (1-28)</label>
+                <input type="number" id="setting-start-day" min="1" max="28" class="form-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Overtime Period Settings -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-clock"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Período de Horas Extras</h4>
+            <p class="settings-section-desc">Defina o período de apuração para o cálculo de horas extras (ex: do dia 24 ao dia 23).</p>
+            <div class="mt-3 flex gap-4 max-w-xs">
+                <div class="flex-1">
+                    <label for="setting-overtime-start-day" class="block text-sm font-medium mb-1">Dia Início</label>
+                    <input type="number" id="setting-overtime-start-day" min="1" max="31" class="form-input">
+                </div>
+                <div class="flex-1">
+                    <label for="setting-overtime-end-day" class="block text-sm font-medium mb-1">Dia Fim</label>
+                    <input type="number" id="setting-overtime-end-day" min="1" max="31" class="form-input">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Settings Button -->
+    <div style="text-align:center;margin:1.5rem 0;">
+        <button id="save-settings-btn" class="btn-primary" style="min-width:200px;"><i class="fas fa-save" style="margin-right:0.5rem;"></i>Salvar Configurações</button>
         <p id="settings-feedback" class="text-sm mt-2 text-center"></p>
     </div>
-    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h4 class="text-lg font-medium">Configurações de Horas Extras</h4>
-        <p class="text-sm text-gray-500 mt-1">Defina o período de apuração para o cálculo de horas extras (ex: do dia 24 ao dia 23).</p>
-        <div class="mt-4 max-w-sm flex items-center gap-4">
-            <div>
-                <label for="setting-overtime-start-day" class="block text-sm font-medium mb-1">Dia de Início (1-31)</label>
-                <input type="number" id="setting-overtime-start-day" min="1" max="31" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+    <!-- Password -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-lock"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Adicionar / Alterar Senha</h4>
+            <p class="settings-section-desc">Se você fez login com o Google, adicione uma senha para ter um método de login alternativo.</p>
+            <div class="mt-3 max-w-xs">
+                <input type="password" id="new-password" class="form-input" placeholder="Nova senha (mín. 6 caracteres)">
+                <button id="save-password-btn" class="btn-primary mt-3" style="width:100%;">Salvar Nova Senha</button>
+                <p id="password-feedback" class="text-sm mt-2 text-center"></p>
             </div>
-            <div>
-                <label for="setting-overtime-end-day" class="block text-sm font-medium mb-1">Dia de Fim (1-31)</label>
-                <input type="number" id="setting-overtime-end-day" min="1" max="31" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            </div>
-        </div>
-    </div>
-    <div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-        <h4 class="text-lg font-medium">Adicionar / Alterar Senha</h4>
-        <p class="text-sm text-gray-500 mt-1">Se você fez login com o Google, adicione uma senha para ter um método de login alternativo.</p>
-        <div class="mt-4 max-w-sm">
-            <label for="new-password" class="block text-sm font-medium mb-1">Nova Senha (mínimo 6 caracteres)</label>
-            <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="********">
-            <button id="save-password-btn" class="mt-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Nova Senha</button>
-            <p id="password-feedback" class="text-sm mt-2 text-center"></p>
         </div>
     </div>
 </div>
@@ -451,91 +633,139 @@
   </div><!-- /app-layout main-container -->
 
         <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-        <button id="close-income-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-        <h3 class="text-lg font-bold mb-4">Adicionar Renda</h3>
+    <div class="modal-shell">
+        <button id="close-income-modal" class="modal-close-btn">&times;</button>
+        <h3 class="modal-title"><i class="fas fa-hand-holding-dollar" style="color:var(--accent);margin-right:0.5rem;"></i>Adicionar Renda</h3>
         <div class="space-y-3">
-            <input type="text" id="income-source" name="source" placeholder="Fonte da Renda" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <input type="text" inputmode="decimal" id="income-amount" name="amount" placeholder="Valor (Ex: 1500,50)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <select id="income-type" name="type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+            <input type="text" id="income-source" name="source" placeholder="Fonte da Renda" class="form-input">
+            <input type="text" inputmode="decimal" id="income-amount" name="amount" placeholder="Valor (Ex: 1500,50)" class="form-input">
+            <select id="income-type" name="type" class="form-input">
                 <option value="fixed">Fixo</option>
                 <option value="variable">Variável</option>
                 <option value="extra">Extra</option>
             </select>
-            
-            <input type="date" id="income-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <div class="flex justify-end gap-2 pt-2">
-                <button id="cancel-income" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="save-income" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
+            <input type="date" id="income-date" name="date" class="form-input">
+            <div class="modal-actions">
+                <button id="cancel-income" class="em-btn-cancel">Cancelar</button>
+                <button id="save-income" class="em-btn-save save-modal-btn">Salvar</button>
             </div>
         </div>
     </div>
 </div>
+        <!-- ===== EXPENSE MODAL (Mobills-style redesign) ===== -->
         <div id="expense-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-        <button id="close-expense-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-        <h3 class="text-lg font-bold mb-4">Adicionar Despesa</h3>
-        <div class="space-y-3">
-            <input type="text" id="expense-description" name="description" placeholder="Descrição" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <input type="text" inputmode="decimal" id="expense-amount" name="amount" placeholder="Valor" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <div class="flex gap-2 items-end">
-                <select id="expense-category" name="category" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></select>
-                <button id="new-category-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 h-11 w-11 flex-shrink-0 rounded-lg flex items-center justify-center" title="Nova Categoria"><i class="fas fa-plus"></i></button>
-            </div>
+            <div class="em-shell">
 
-            <div id="new-category-input-group" class="hidden flex gap-2">
-                <input type="text" id="new-category-name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg" placeholder="Nome da Nova Categoria">
-                <button id="save-new-category-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar</button>
-            </div>
+                <!-- Header Bar -->
+                <div class="em-header">
+                    <button id="close-expense-modal" class="em-close-btn" aria-label="Fechar">&times;</button>
+                    <h3 class="em-header-title">Nova Despesa</h3>
+                    <div class="em-header-spacer"></div>
+                </div>
 
-            <select id="expense-payment" name="payment" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                <option value="debit">Débito</option>
-                <option value="credit">Crédito</option>
-                <option value="pix">PIX</option>
-                <option value="cash">Dinheiro</option>
-                <option value="transfer">Transferência</option>
-            </select>
+                <!-- Hero Amount Input -->
+                <div class="em-hero">
+                    <i class="fas fa-calculator em-hero-icon"></i>
+                    <input type="text" inputmode="decimal" id="expense-amount" name="amount"
+                           placeholder="0,00" class="em-hero-input" autocomplete="off">
+                    <span class="em-hero-currency">BRL</span>
+                </div>
+                <div class="em-hero-underline"></div>
 
-            <div id="installments-group" class="hidden"><label class="text-sm">Parcelas</label><input type="number" id="expense-installments" value="1" min="1" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg"></div>
-            
-            <input type="date" id="expense-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            
-            <div class="flex justify-end gap-2 pt-2">
-                <button id="cancel-expense" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="save-expense" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
+                <!-- Date Pills Row -->
+                <div class="em-row em-date-row">
+                    <i class="fas fa-calendar-alt em-row-icon"></i>
+                    <div class="em-date-pills">
+                        <button type="button" class="em-date-pill active" data-days="0">Hoje</button>
+                        <button type="button" class="em-date-pill" data-days="1">Ontem</button>
+                        <button type="button" class="em-date-pill em-date-outros" data-days="-1">Outros...</button>
+                    </div>
+                    <input type="date" id="expense-date" name="date" class="em-date-native">
+                </div>
+
+                <!-- Description Row -->
+                <div class="em-row">
+                    <i class="fas fa-heart em-row-icon"></i>
+                    <input type="text" id="expense-description" name="description"
+                           placeholder="Descrição" class="em-row-input" autocomplete="off">
+                </div>
+
+                <!-- Category Row -->
+                <div class="em-row">
+                    <i class="fas fa-tag em-row-icon"></i>
+                    <select id="expense-category" name="category" class="em-row-select"></select>
+                    <button id="new-category-btn" class="em-add-btn" title="Nova Categoria">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="new-category-input-group" class="hidden em-new-cat-group">
+                    <input type="text" id="new-category-name" placeholder="Nome da Nova Categoria" class="em-row-input">
+                    <button id="save-new-category-btn" class="em-save-cat-btn">Salvar</button>
+                </div>
+
+                <!-- Payment Method Row -->
+                <div class="em-row">
+                    <i class="fas fa-university em-row-icon"></i>
+                    <select id="expense-payment" name="payment" class="em-row-select">
+                        <option value="debit">Débito</option>
+                        <option value="credit">Crédito</option>
+                        <option value="pix">PIX</option>
+                        <option value="cash">Dinheiro</option>
+                        <option value="transfer">Transferência</option>
+                    </select>
+                </div>
+
+                <!-- Installments Row (hidden by default, shown for credit) -->
+                <div id="installments-group" class="hidden em-row">
+                    <i class="fas fa-layer-group em-row-icon"></i>
+                    <label class="em-row-label">Parcelas</label>
+                    <input type="number" id="expense-installments" name="installments"
+                           value="1" min="1" class="em-row-input em-installments-input">
+                </div>
+
+                <!-- Foi Paga Toggle Row -->
+                <div class="em-row em-toggle-row">
+                    <i class="fas fa-check-circle em-row-icon"></i>
+                    <span class="em-row-label">Foi paga</span>
+                    <label class="em-toggle-switch">
+                        <input type="checkbox" id="expense-isPaid" name="isPaid" class="em-toggle-input">
+                        <span class="em-toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="em-actions">
+                    <button id="cancel-expense" class="em-btn-cancel">Cancelar</button>
+                    <button id="save-expense" class="em-btn-save save-modal-btn">Salvar</button>
+                </div>
+
             </div>
         </div>
-    </div>
-</div>
+        <!-- ===== END EXPENSE MODAL ===== -->
         <div id="goal-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button id="close-goal-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-                <h3 class="text-lg font-bold mb-4">Adicionar Meta</h3>
+            <div class="modal-shell">
+                <button id="close-goal-modal" class="modal-close-btn">&times;</button>
+                <h3 class="modal-title"><i class="fas fa-bullseye" style="color:var(--accent);margin-right:0.5rem;"></i>Adicionar Meta</h3>
                 <div class="space-y-3">
-                    <input type="text" id="goal-name" name="name" placeholder="Nome da Meta" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" inputmode="decimal" id="goal-target" name="target" placeholder="Valor Alvo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" inputmode="decimal" id="goal-current" name="current" placeholder="Valor Atual" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" name="deadline" id="goal-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" id="cancel-goal" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button type="button" id="save-goal" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
+                    <input type="text" id="goal-name" name="name" placeholder="Nome da Meta" class="form-input">
+                    <input type="text" inputmode="decimal" id="goal-target" name="target" placeholder="Valor Alvo" class="form-input">
+                    <input type="text" inputmode="decimal" id="goal-current" name="current" placeholder="Valor Atual" class="form-input">
+                    <label class="text-sm block pt-2">Prazo (opcional)</label><input type="date" name="deadline" id="goal-deadline" class="form-input">
+                    <div class="modal-actions">
+                        <button type="button" id="cancel-goal" class="em-btn-cancel">Cancelar</button>
+                        <button type="button" id="save-goal" class="em-btn-save save-modal-btn">Salvar</button>
                     </div>
                 </div>
             </div>
         </div>
         <div id="investment-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button id="close-investment-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-                <h3 class="text-lg font-bold mb-4">Adicionar Investimento</h3>
+            <div class="modal-shell">
+                <button id="close-investment-modal" class="modal-close-btn">&times;</button>
+                <h3 class="modal-title"><i class="fas fa-gem" style="color:var(--accent);margin-right:0.5rem;"></i>Adicionar Investimento</h3>
                 <div class="space-y-3">
-                    <input type="text" id="investment-description" name="description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="text" inputmode="decimal" id="investment-amount" name="amount" placeholder="Valor Aportado" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <select id="investment-type" name="type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
+                    <input type="text" id="investment-description" name="description" placeholder="Descrição (Ex: Tesouro Selic 2029)" class="form-input">
+                    <input type="text" inputmode="decimal" id="investment-amount" name="amount" placeholder="Valor Aportado" class="form-input">
+                    <select id="investment-type" name="type" class="form-input">
                         <option value="treasury">Tesouro Direto</option>
                         <option value="cdb">CDB/LCI/LCA</option>
                         <option value="stocks">Ações</option>
@@ -543,42 +773,124 @@
                         <option value="funds">Fundos</option>
                         <option value="savings">Poupança</option>
                     </select>
-                    <input type="text" inputmode="decimal" id="investment-yield" name="yield" placeholder="Rentabilidade Anual (%)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <input type="date" id="investment-date" name="date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" id="cancel-investment" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                        <button type="button" id="save-investment" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg save-modal-btn">Salvar</button>
+                    <input type="text" inputmode="decimal" id="investment-yield" name="yield" placeholder="Rentabilidade Anual (%)" class="form-input">
+                    <input type="date" id="investment-date" name="date" class="form-input">
+                    <div class="modal-actions">
+                        <button type="button" id="cancel-investment" class="em-btn-cancel">Cancelar</button>
+                        <button type="button" id="save-investment" class="em-btn-save save-modal-btn">Salvar</button>
                     </div>
                 </div>
             </div>
         </div>
 
 
+        <!-- App Guide Modal -->
+        <div id="app-guide-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
+            <div class="guide-shell">
+                <div class="guide-header">
+                    <h3><i class="fas fa-compass" style="margin-right:0.5rem;"></i>Guia do App</h3>
+                    <button id="close-guide-modal" class="em-close-btn" aria-label="Fechar">&times;</button>
+                </div>
+                <div class="guide-body">
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(99,102,241,0.1);color:#818cf8;"><i class="fas fa-chart-line"></i></div>
+                        <div>
+                            <h4>Dashboard</h4>
+                            <p>Visão geral das suas finanças com gráficos e resumos do período atual.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(34,197,94,0.1);color:#22c55e;"><i class="fas fa-hand-holding-dollar"></i></div>
+                        <div>
+                            <h4>Renda</h4>
+                            <p>Registre todas as suas fontes de receita — salário, freelances, extras.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;"><i class="fas fa-receipt"></i></div>
+                        <div>
+                            <h4>Despesas</h4>
+                            <p>Controle seus gastos por categoria. Importe extratos CSV/OFX automaticamente.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <h4>Horas Extras</h4>
+                            <p>Registre suas horas trabalhadas para calcular hora extra 50% e 100%.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(14,165,233,0.1);color:#0ea5e9;"><i class="fas fa-arrow-right-arrow-left"></i></div>
+                        <div>
+                            <h4>Visão Mensal</h4>
+                            <p>Veja todas as receitas e despesas do mês em um feed unificado, agrupadas por dia.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(14,165,233,0.12);color:#0ea5e9;"><i class="fas fa-sync-alt"></i></div>
+                        <div>
+                            <h4>Fixos</h4>
+                            <p>Cadastre rendas e despesas recorrentes. Elas aparecem automaticamente todo mês.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(168,85,247,0.1);color:#a855f7;"><i class="fas fa-bullseye"></i></div>
+                        <div>
+                            <h4>Metas</h4>
+                            <p>Planeje o futuro! Defina metas de economia e acompanhe seu progresso.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(236,72,153,0.1);color:#ec4899;"><i class="fas fa-gem"></i></div>
+                        <div>
+                            <h4>Investimentos</h4>
+                            <p>Acompanhe seus aportes e rendimentos estimados em uma carteira centralizada.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(107,114,128,0.1);color:#6b7280;"><i class="fas fa-calculator"></i></div>
+                        <div>
+                            <h4>Calculadora</h4>
+                            <p>Calcule seu salário líquido com INSS, IRRF, horas extras e descontos.</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-item-icon" style="background:rgba(20,184,166,0.1);color:#14b8a6;"><i class="fas fa-user-cog"></i></div>
+                        <div>
+                            <h4>Minha Conta</h4>
+                            <p>Personalize o tema, configure jornada de trabalho e períodos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="toast-container" class="fixed top-5 right-5 z-[100] w-full max-w-xs space-y-2"></div>
 
         <div id="confirmation-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md relative">
-                <h3 id="confirmation-title" class="text-xl font-bold mb-3 text-gray-800 dark:text-gray-100"></h3>
+            <div class="modal-shell" style="max-width:28rem;">
+                <h3 id="confirmation-title" class="modal-title"></h3>
                 <p id="confirmation-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
-                <div class="flex justify-end gap-3">
-                    <button id="confirm-cancel-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-5 rounded-lg">Cancelar</button>
-                    <button id="confirm-ok-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg">Confirmar</button>
+                <div class="modal-actions">
+                    <button id="confirm-cancel-btn" class="em-btn-cancel">Cancelar</button>
+                    <button id="confirm-ok-btn" class="em-btn-save" style="background:#ef4444;">Confirmar</button>
                 </div>
             </div>
         </div>
 
 
     <div id="contribution-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-        <button id="close-contribution-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-        <h3 id="contribution-modal-title" class="text-lg font-bold mb-4">Adicionar Contribuição</h3>
+    <div class="modal-shell">
+        <button id="close-contribution-modal" class="modal-close-btn">&times;</button>
+        <h3 id="contribution-modal-title" class="modal-title"><i class="fas fa-plus-circle" style="color:var(--accent);margin-right:0.5rem;"></i>Adicionar Contribuição</h3>
         <div class="space-y-3">
             <input type="hidden" id="contribution-goalId">
-            <input type="text" inputmode="decimal" id="contribution-amount" placeholder="Valor da Contribuição (Ex: 100,00)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            <input type="date" id="contribution-date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg">
-            <div class="flex justify-end gap-2 pt-2">
-                <button id="cancel-contribution" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="save-contribution" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Contribuição</button>
+            <input type="text" inputmode="decimal" id="contribution-amount" placeholder="Valor da Contribuição (Ex: 100,00)" class="form-input">
+            <input type="date" id="contribution-date" class="form-input">
+            <div class="modal-actions">
+                <button id="cancel-contribution" class="em-btn-cancel">Cancelar</button>
+                <button id="save-contribution" class="em-btn-save">Salvar Contribuição</button>
             </div>
         </div>
     </div>
@@ -588,13 +900,13 @@
 <div id="csv-import-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
         <button id="close-csv-modal" class="absolute top-3 right-4 text-2xl text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
-        <h3 class="text-lg font-bold mb-4"><i class="fas fa-file-import mr-2 text-emerald-500"></i>Importar Extrato (CSV / Excel)</h3>
+        <h3 class="text-lg font-bold mb-4"><i class="fas fa-file-import mr-2 text-emerald-500"></i>Importar Extrato (CSV / Excel / OFX)</h3>
         
         <div id="csv-drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors mb-4">
             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 dark:text-gray-500 mb-3"></i>
-            <p class="text-gray-600 dark:text-gray-400 font-medium">Arraste seu arquivo CSV ou Excel aqui</p>
-            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">ou clique para selecionar (.csv, .xls, .xlsx)</p>
-            <input type="file" id="csv-file-input" accept=".csv,.xls,.xlsx" class="hidden">
+            <p class="text-gray-600 dark:text-gray-400 font-medium">Arraste seu arquivo CSV, Excel ou OFX aqui</p>
+            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">ou clique para selecionar (.csv, .xls, .xlsx, .ofx, .qfx)</p>
+            <input type="file" id="csv-file-input" accept=".csv,.xls,.xlsx,.ofx,.qfx" class="hidden">
         </div>
 
         <div id="csv-preview" class="hidden mb-4">
@@ -655,9 +967,9 @@
         <i class="fas fa-hand-holding-dollar text-xl mb-1"></i>
         <span class="text-xs font-medium">Renda</span>
     </button>
-    <button data-tab="expenses" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
-        <i class="fas fa-receipt text-xl mb-1"></i>
-        <span class="text-xs font-medium">Despesas</span>
+    <button data-tab="transactions" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-arrow-right-arrow-left text-xl mb-1"></i>
+        <span class="text-xs font-medium">Transações</span>
     </button>
     <button data-tab="goals" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
         <i class="fas fa-bullseye text-xl mb-1"></i>
