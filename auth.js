@@ -49,7 +49,12 @@ if (auth) {
     auth.onAuthStateChanged(user => {
         if (user) {
             // Se o usuário está logado, redireciona para a página principal
-            window.location.href = 'index.html';
+            // Suporta hook de animação de transição na login.html
+            if (typeof window.onLoginSuccess === 'function') {
+                window.onLoginSuccess();
+            } else {
+                window.location.href = 'index.html';
+            }
         }
     });
 }

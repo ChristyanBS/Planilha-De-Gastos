@@ -30,6 +30,15 @@ export function checkAndShowInstallBanner() {
     }
 }
 
+// Dispensa o banner de instalação com animação de saída
+function dismissInstallBanner() {
+    const installBanner = document.getElementById('install-prompt-banner');
+    if (installBanner) {
+        installBanner.classList.add('translate-y-full');
+        setTimeout(() => installBanner.classList.add('hidden'), 500);
+    }
+}
+
 // Função para iniciar todos os manipuladores de PWA
 export function initPwaHandlers() {
     const installBanner = document.getElementById('install-prompt-banner');
@@ -62,12 +71,7 @@ export function initPwaHandlers() {
 
     // O que fazer se o usuário fechar o nosso banner manualmente
     if (closeInstallBannerButton) {
-        closeInstallBannerButton.addEventListener('click', () => {
-            if (installBanner) {
-                installBanner.classList.add('translate-y-full');
-                setTimeout(() => installBanner.classList.add('hidden'), 500);
-            }
-        });
+        closeInstallBannerButton.addEventListener('click', dismissInstallBanner);
     }
 
     // Lógica específica para detectar e instruir usuários de iOS

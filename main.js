@@ -46,9 +46,45 @@ function syncPeriodSelects() {
     document.getElementById('year-select').value = state.currentYear;
 }
 
+// Atualiza campos de data dos formulários para ficarem dentro do período visualizado
+function updateDefaultDates() {
+    const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+    const payRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
+
+    // Para horas extras: usa o startDate do período de horas ou hoje (o que estiver dentro do range)
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const otStart = overtimeRange.startDate.toISOString().split('T')[0];
+    const otEnd = overtimeRange.endDate.toISOString().split('T')[0];
+
+    const hourDate = document.getElementById('hour-date');
+    if (hourDate) {
+        if (todayStr >= otStart && todayStr <= otEnd) {
+            hourDate.value = todayStr;
+        } else {
+            hourDate.value = otStart;
+        }
+    }
+
+    // Para despesas: usa o primeiro dia do período financeiro ou hoje
+    const payStart = payRange.startDate.toISOString().split('T')[0];
+    const payEnd = payRange.endDate.toISOString().split('T')[0];
+
+    const expenseDate = document.getElementById('expense-date');
+    if (expenseDate) {
+        if (todayStr >= payStart && todayStr <= payEnd) {
+            expenseDate.value = todayStr;
+        } else {
+            expenseDate.value = payStart;
+        }
+    }
+}
+
 // --- LÓGICA PRINCIPAL ---
 async function updateDashboard() {
-    if (!state.currentUser) return;
+    if (!state.currentUser) return false;
+
+    try {
 
     // Carrega dados que não dependem do período (metas, investimentos, etc.)
     const [initialData, recurringData] = await Promise.all([
@@ -79,6 +115,12 @@ async function updateDashboard() {
     state.timeEntries = timeEntriesData; // CORREÇÃO: Usa os dados de horas carregados com o período correto
 
     rerenderUI();
+    return true;
+    } catch (error) {
+        console.error('Falha ao atualizar dashboard:', error);
+        ui.showToast('Não foi possível atualizar os dados agora. Tente novamente.', 'error');
+        return false;
+    }
 }
 
 function rerenderUI() {
@@ -105,12 +147,20 @@ function rerenderUI() {
     ui.updateExpensesTable(state.expenses, state.settings.expenseCategories, { ...tableCallbacks, onStatusToggle: handleExpenseStatusToggle });
     ui.updateGoalsTable(state.goals, tableCallbacks);
     ui.updateInvestmentsTable(state.investments, tableCallbacks);
-    ui.updateHoursTable(state.timeEntries.filter(t => new Date(t.date + 'T00:00:00') >= overtimeRange.startDate && new Date(t.date + 'T00:00:00') <= overtimeRange.endDate), tableCallbacks);
+    ui.updateHoursTable(state.timeEntries, tableCallbacks);
     ui.updateRecurringItemsTable(state.recurringIncomes, state.recurringExpenses, state.settings.expenseCategories, tableCallbacks);
     ui.renderTransactionsFeed(state.incomes, state.expenses, state.settings.expenseCategories);
-    
-    if (document.querySelector('.tab-btn[data-tab="reports"]')?.classList.contains('active-tab')) {
+
+    const dashboardIsActive = document.querySelector('.tab-btn[data-tab="dashboard"]')?.classList.contains('active-tab');
+    if (dashboardIsActive) {
+        ui.renderDashboardCharts(state, totals);
         handleGenerateReport();
+        if (window.gsap && window.DashboardAnimations?.play) {
+            setTimeout(() => {
+                window.DashboardAnimations.play();
+                window.DashboardAnimations.animateCategoryChart?.();
+            }, 80);
+        }
     }
 }
 
@@ -260,6 +310,28 @@ async function handleSaveContribution() {
     }
 }
 
+// Determina qual mês/ano um registro de horas pertence com base no período de horas extras
+function getMonthForDate(dateStr, overtimeStartDay, overtimeEndDay) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDate();
+    const month = d.getMonth() + 1; // 1-based
+    const year = d.getFullYear();
+
+    if (overtimeStartDay <= overtimeEndDay) {
+        // Período dentro do mesmo mês
+        return { year, month };
+    } else {
+        // Período cruza meses (ex: dia 24 até dia 23 do próximo)
+        if (day >= overtimeStartDay) {
+            // Ex: dia 24+ pertence ao mês SEGUINTE
+            if (month === 12) return { year: year + 1, month: 1 };
+            return { year, month: month + 1 };
+        }
+        // Ex: dia 1-23 pertence ao mês ATUAL
+        return { year, month };
+    }
+}
+
 async function handleSaveTimeEntry() {
     const addBtn = document.getElementById('add-hour-entry-btn');
     const id = addBtn.dataset.id; // Verifica se estamos editando (se há um 'data-id')
@@ -285,14 +357,27 @@ async function handleSaveTimeEntry() {
         document.getElementById('add-hour-entry-btn').removeAttribute('data-id');
         document.getElementById('add-hour-entry-btn').innerHTML = '<i class="fas fa-plus" style="margin-right:0.5rem;"></i>Adicionar';
         document.getElementById('cancel-hour-edit-btn').classList.add('hidden');
+
+        // Determina o período correto para a data salva
+        const target = getMonthForDate(itemData.date, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
+        const needsNavigate = target.month !== state.currentMonth || target.year !== state.currentYear;
+
+        if (needsNavigate) {
+            state.currentMonth = target.month;
+            state.currentYear = target.year;
+            syncPeriodSelects();
+            updatePeriodLabel();
+        }
+
+        // Atualiza a data padrão para ficar dentro do período visualizado
+        updateDefaultDates();
         
         // Limpa os campos do formulário de horas
-        document.getElementById('hour-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('hour-entry').value = '';
         document.getElementById('hour-break-start').value = '';
         document.getElementById('hour-break-end').value = '';
         document.getElementById('hour-exit').value = '';
-        document.getElementById('hour-is-holiday').checked = false; // Limpa a caixinha também
+        document.getElementById('hour-is-holiday').checked = false;
 
         await updateDashboard(); // Atualiza a UI
     }
@@ -478,12 +563,13 @@ function handleTabChange(tabId) {
         const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
         const totals = core.calculateTotals(state, periodRange, overtimeRange);
         ui.renderDashboardCharts(state, totals);
+        handleGenerateReport();
 
         if (window.gsap && window.DashboardAnimations?.play) {
-            requestAnimationFrame(() => window.DashboardAnimations.play());
+            setTimeout(() => {
+                window.DashboardAnimations.play();
+            }, 150);
         }
-    } else if (tabId === 'reports') {
-        handleGenerateReport();
     } else if (tabId === 'calculator') {
         const totals = core.calculateTotals(state, 
             utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay),
@@ -501,10 +587,30 @@ function handleGenerateReport() {
     const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
     const totals = core.calculateTotals(state, periodRange, overtimeRange);
     ui.generateReport(state, totals);
+    // Anima entrada do gráfico de relatório
+    if (window.DashboardAnimations?.animateReportChart) {
+        setTimeout(() => window.DashboardAnimations.animateReportChart(), 50);
+    }
 }
 
 // --- SETUP DOS EVENT LISTENERS ---
 function setupEventListeners() {
+    if (setupEventListeners.initialized) return;
+    setupEventListeners.initialized = true;
+
+    // Registra a navegação de abas primeiro para evitar travamento de clique
+    // caso algum listener opcional falhe depois.
+    document.querySelectorAll('.tab-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+            this.classList.add('active-tab');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${this.dataset.tab}-content`)?.classList.remove('hidden');
+            ui.closeMobileMenu();
+            handleTabChange(this.dataset.tab);
+        });
+    });
+
     const dropdownButtons = document.querySelectorAll('.dropdown .nav-main-btn');
  
 
@@ -532,12 +638,11 @@ window.addEventListener('click', () => {
         menu.classList.remove('open');
     });
 });
-    initPwaHandlers();
 
     // --- Listeners do Cabeçalho e Ações Gerais ---
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
-    document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
-    document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updatePeriodLabel(); updateDashboard(); });
+    document.getElementById('month-select').addEventListener('change', (e) => { state.currentMonth = parseInt(e.target.value); updatePeriodLabel(); updateDefaultDates(); updateDashboard(); });
+    document.getElementById('year-select').addEventListener('change', (e) => { state.currentYear = parseInt(e.target.value); updatePeriodLabel(); updateDefaultDates(); updateDashboard(); });
 
     // Period navigator arrows with carousel animation
     function navigateMonth(direction) {
@@ -562,6 +667,7 @@ window.addEventListener('click', () => {
             }
             syncPeriodSelects();
             updatePeriodLabel();
+            updateDefaultDates();
             updateDashboard();
 
             // Slide in
@@ -774,24 +880,28 @@ window.addEventListener('click', () => {
         });
     });
 
-    // --- Listener de Navegação por Abas ---
-    document.querySelectorAll('.tab-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
-            this.classList.add('active-tab');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(`${this.dataset.tab}-content`)?.classList.remove('hidden');
-            ui.closeMobileMenu();
-            handleTabChange(this.dataset.tab);
-        });
-    });
-
     // --- Inicialização do importador CSV ---
     csvImporter.initCSVImportUI({
         onConfirmImport: async (parsedData) => {
             const result = await csvImporter.processImport(parsedData, db.saveExpense, db.saveItem, firestoreDB, state.currentUser);
             if (result && (result.expenses > 0 || result.incomes > 0)) {
                 await updateDashboard();
+
+                // Navega para o dashboard e re-executa a animação GSAP com badge de resultado
+                const dashBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
+                if (dashBtn) dashBtn.click();
+
+                // Aguarda o próximo ciclo para o GSAP já ter rodado antes de exibir o banner
+                setTimeout(() => {
+                    if (window.DashboardAnimations?.showImportResult) {
+                        window.DashboardAnimations.showImportResult(result);
+                    }
+                    // Listener do botão de fechar o banner
+                    document.getElementById('csv-result-close')?.addEventListener('click', () => {
+                        const banner = document.getElementById('csv-import-result');
+                        if (banner) banner.classList.remove('visible');
+                    }, { once: true });
+                }, 900);
             }
             return result;
         }
@@ -803,8 +913,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             state.currentUser = user;
             document.getElementById('main-container').style.display = 'flex';
+
+            setupEventListeners();
+            initPwaHandlers();
+            checkAndShowInstallBanner();
+            
+            // Pré-ativa a aba dashboard ANTES de carregar dados
+            // para que rerenderUI() renderize os gráficos na primeira vez
+            const dashTabBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
+            if (dashTabBtn) dashTabBtn.classList.add('active-tab');
             
             await updateDashboard();
+            updateDefaultDates();
             initThemeColor();
             loadSettingsToUI();
             
@@ -822,10 +942,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             ui.updateThemeButton(localStorage.getItem('theme') || 'light');
             
-            setupEventListeners();
-            document.querySelector('.tab-btn[data-tab="dashboard"]').click();
-             initPwaHandlers();
-             checkAndShowInstallBanner();
+            // Dispara GSAP animations para o dashboard (a aba já está ativa)
+            if (window.gsap && window.DashboardAnimations?.play) {
+                setTimeout(() => {
+                    window.DashboardAnimations.play();
+                    window.DashboardAnimations.animateCategoryChart?.();
+                }, 200);
+            }
         } else {
             window.location.href = 'login.html';
         }

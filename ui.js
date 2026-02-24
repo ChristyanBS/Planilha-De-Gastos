@@ -9,11 +9,33 @@ let dashboardPieChartInstance;
 export function renderDashboardCharts(state, totals) {
     const isDarkMode = document.documentElement.classList.contains('dark');
     const textColor = isDarkMode ? '#cbd5e1' : '#374151';
-    const gridColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const gridColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
     const { expenses } = state;
     const { expenseCategories } = state.settings;
 
-    // --- Line Chart: Resumo do Mês ---
+    // --- Tooltip Profissional ---
+    const professionalTooltip = {
+        backgroundColor: isDarkMode ? 'rgba(15,20,35,0.95)' : 'rgba(255,255,255,0.97)',
+        titleColor: isDarkMode ? '#e2e8f0' : '#1e293b',
+        bodyColor: isDarkMode ? '#94a3b8' : '#475569',
+        borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+        borderWidth: 1,
+        cornerRadius: 10,
+        padding: 12,
+        titleFont: { size: 13, weight: '600', family: 'Inter' },
+        bodyFont: { size: 12, family: 'Inter' },
+        displayColors: true,
+        boxPadding: 4,
+        usePointStyle: true,
+        callbacks: {
+            label: function(ctx) {
+                const value = ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
+                return ` ${ctx.dataset.label || ctx.label}: R$ ${Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            }
+        }
+    };
+
+    // --- Line Chart: Resumo do Mês (Gradiente Profissional) ---
     const lineCtx = document.getElementById('dashboard-line-chart')?.getContext('2d');
     if (lineCtx) {
         if (dashboardLineChartInstance) dashboardLineChartInstance.destroy();
@@ -44,12 +66,22 @@ export function renderDashboardCharts(state, totals) {
             expenseData.push(cumulativeExpense);
         });
 
-        // If no data, show placeholder
         if (labels.length === 0) {
             labels.push('Sem dados');
             incomeData.push(0);
             expenseData.push(0);
         }
+
+        // Gradientes profissionais
+        const incomeGradient = lineCtx.createLinearGradient(0, 0, 0, lineCtx.canvas.clientHeight || 280);
+        incomeGradient.addColorStop(0, isDarkMode ? 'rgba(62,207,142,0.30)' : 'rgba(34,197,94,0.25)');
+        incomeGradient.addColorStop(0.5, isDarkMode ? 'rgba(62,207,142,0.08)' : 'rgba(34,197,94,0.08)');
+        incomeGradient.addColorStop(1, 'rgba(62,207,142,0)');
+
+        const expenseGradient = lineCtx.createLinearGradient(0, 0, 0, lineCtx.canvas.clientHeight || 280);
+        expenseGradient.addColorStop(0, isDarkMode ? 'rgba(240,108,108,0.28)' : 'rgba(239,68,68,0.22)');
+        expenseGradient.addColorStop(0.5, isDarkMode ? 'rgba(240,108,108,0.06)' : 'rgba(239,68,68,0.06)');
+        expenseGradient.addColorStop(1, 'rgba(240,108,108,0)');
 
         dashboardLineChartInstance = new Chart(lineCtx, {
             type: 'line',
@@ -59,36 +91,86 @@ export function renderDashboardCharts(state, totals) {
                     {
                         label: 'Entradas',
                         data: incomeData,
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34,197,94,0.1)',
+                        borderColor: isDarkMode ? '#3ecf8e' : '#22c55e',
+                        backgroundColor: incomeGradient,
                         fill: true,
-                        tension: 0.3,
-                        pointRadius: 3
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: isDarkMode ? '#3ecf8e' : '#22c55e',
+                        pointBorderColor: isDarkMode ? '#0f1e1a' : '#ffffff',
+                        pointBorderWidth: 2,
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: isDarkMode ? '#3ecf8e' : '#22c55e',
+                        pointHoverBorderWidth: 3,
+                        borderWidth: 2.5,
+                        borderCapStyle: 'round',
+                        borderJoinStyle: 'round'
                     },
                     {
                         label: 'Saídas',
                         data: expenseData,
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239,68,68,0.1)',
+                        borderColor: isDarkMode ? '#f06c6c' : '#ef4444',
+                        backgroundColor: expenseGradient,
                         fill: true,
-                        tension: 0.3,
-                        pointRadius: 3
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        pointBackgroundColor: isDarkMode ? '#f06c6c' : '#ef4444',
+                        pointBorderColor: isDarkMode ? '#1d1111' : '#ffffff',
+                        pointBorderWidth: 2,
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: isDarkMode ? '#f06c6c' : '#ef4444',
+                        pointHoverBorderWidth: 3,
+                        borderWidth: 2.5,
+                        borderCapStyle: 'round',
+                        borderJoinStyle: 'round'
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: textColor, usePointStyle: true, pointStyle: 'circle' } } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: textColor, usePointStyle: true, pointStyle: 'circle',
+                            padding: 20, font: { size: 12, weight: '500', family: 'Inter' }
+                        }
+                    },
+                    tooltip: professionalTooltip
+                },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, callback: v => 'R$ ' + v.toLocaleString('pt-BR') } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor, drawBorder: false },
+                        border: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 11, family: 'Space Grotesk' },
+                            callback: v => 'R$ ' + v.toLocaleString('pt-BR'),
+                            padding: 8
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false },
+                        ticks: {
+                            color: textColor,
+                            font: { size: 11, family: 'Inter' },
+                            padding: 8
+                        }
+                    }
+                },
+                elements: {
+                    line: { borderCapStyle: 'round' }
                 }
             }
         });
     }
 
-    // --- Pie Chart: Gasto por Categoria ---
+    // --- Doughnut Chart: Gasto por Categoria (Profissional) ---
     const pieCtx = document.getElementById('dashboard-pie-chart')?.getContext('2d');
     if (pieCtx) {
         if (dashboardPieChartInstance) dashboardPieChartInstance.destroy();
@@ -97,7 +179,39 @@ export function renderDashboardCharts(state, totals) {
         const categoryData = Object.keys(expenseCategories).map(catKey =>
             expenses.filter(e => e.category === catKey).reduce((sum, e) => sum + e.amount, 0)
         );
-        const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#6b7280', '#ec4899', '#06b6d4'];
+        
+        // Paleta premium com profundidade
+        const premiumColors = [
+            '#f06c6c', '#f59e42', '#fbbf24', '#3ecf8e', '#5c9cf5',
+            '#a78bfa', '#6b7280', '#ec4899', '#06b6d4'
+        ];
+        
+        const hoverColors = [
+            '#f88a8a', '#f7b06a', '#fcd34d', '#5ddda4', '#7bb4f7',
+            '#bfa3fc', '#8b95a3', '#f472b6', '#22d3ee'
+        ];
+
+        // Centro text plugin
+        const centerTextPlugin = {
+            id: 'centerText',
+            afterDraw(chart) {
+                const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                if (total === 0) return;
+                const { ctx: c, chartArea } = chart;
+                const cx = (chartArea.left + chartArea.right) / 2;
+                const cy = (chartArea.top + chartArea.bottom) / 2;
+                c.save();
+                c.textAlign = 'center';
+                c.textBaseline = 'middle';
+                c.font = '600 11px Inter';
+                c.fillStyle = isDarkMode ? 'rgba(203,213,225,0.5)' : 'rgba(55,65,81,0.5)';
+                c.fillText('Total', cx, cy - 10);
+                c.font = '700 16px "Space Grotesk"';
+                c.fillStyle = isDarkMode ? '#e2e8f0' : '#1e293b';
+                c.fillText('R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 0 }), cx, cy + 10);
+                c.restore();
+            }
+        };
 
         dashboardPieChartInstance = new Chart(pieCtx, {
             type: 'doughnut',
@@ -105,22 +219,46 @@ export function renderDashboardCharts(state, totals) {
                 labels: categoryLabels,
                 datasets: [{
                     data: categoryData,
-                    backgroundColor: colors.slice(0, categoryLabels.length),
-                    borderWidth: isDarkMode ? 0 : 2,
-                    borderColor: isDarkMode ? 'transparent' : '#ffffff'
+                    backgroundColor: premiumColors.slice(0, categoryLabels.length),
+                    hoverBackgroundColor: hoverColors.slice(0, categoryLabels.length),
+                    borderWidth: isDarkMode ? 2 : 3,
+                    borderColor: isDarkMode ? '#0c1420' : '#ffffff',
+                    hoverBorderColor: isDarkMode ? '#1a2540' : '#f8fafc',
+                    hoverOffset: 8
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '60%',
+                cutout: '62%',
+                radius: '90%',
                 plugins: {
                     legend: {
                         position: 'bottom',
-                        labels: { color: textColor, usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 11 } }
+                        labels: {
+                            color: textColor, usePointStyle: true, pointStyle: 'circle',
+                            padding: 14, font: { size: 11, weight: '500', family: 'Inter' }
+                        }
+                    },
+                    tooltip: {
+                        ...professionalTooltip,
+                        callbacks: {
+                            label: function(ctx) {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const percent = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${percent}%)`;
+                            }
+                        }
                     }
+                },
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 800,
+                    easing: 'easeOutQuart'
                 }
-            }
+            },
+            plugins: [centerTextPlugin]
         });
     }
 }
@@ -550,18 +688,20 @@ export function updateIncomeTable(incomes, callbacks) {
     const incomeTypeLabels = { fixed: 'Fixo', variable: 'Variável', extra: 'Extra' };
     createTable('incomes-table', incomes, item => {
         const row = document.createElement('tr');
-        // Adiciona um ícone se o item for fixo (recorrente)
         const recurringIcon = item.isRecurring ? `<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>` : '';
+        const typeBadge = `<span class="type-badge type-${item.type}">${incomeTypeLabels[item.type] || ''}</span>`;
 
         row.innerHTML = `
-            <td class="px-6 py-4 whitespace-nowrap">${item.source}${recurringIcon}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${incomeTypeLabels[item.type] || ''}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right no-print">
-                <button class="calc-income-btn" data-id="${item.id}" title="Calcular Salário Líquido"><i class="fas fa-calculator text-blue-600"></i></button>
-                <button class="edit-btn ml-4" data-id="${item.id}" data-type="income"><i class="fas fa-edit text-indigo-600"></i></button>
-                <button class="delete-btn ml-4" data-id="${item.id}" data-type="income"><i class="fas fa-trash text-red-600"></i></button>
+            <td class="td-main">${item.source}${recurringIcon}</td>
+            <td class="td-value text-right">${formatCurrency(item.amount)}</td>
+            <td class="td-tag">${typeBadge}</td>
+            <td class="td-date">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="td-actions text-right no-print">
+                <div class="action-group">
+                    <button class="calc-income-btn action-btn" data-id="${item.id}" title="Calcular Salário Líquido"><i class="fas fa-calculator"></i></button>
+                    <button class="edit-btn action-btn" data-id="${item.id}" data-type="income" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn action-btn action-btn-danger" data-id="${item.id}" data-type="income" title="Excluir"><i class="fas fa-trash"></i></button>
+                </div>
             </td>`;
         return row;
     });
@@ -575,26 +715,30 @@ export function updateExpensesTable(expenses, categories, callbacks) {
     createTable('expenses-table', expenses, item => {
         const row = document.createElement('tr');
         if (item.isPaid) row.classList.add('expense-paid');
-        // Adiciona um ícone se o item for fixo (recorrente)
-        const recurringIcon = item.isRecurring ? `<i class="fas fa-sync-alt text-blue-500 ml-2" title="Item Fixo"></i>` : '';
+        const recurringIcon = item.isRecurring ? `<i class="fas fa-sync-alt text-blue-500 ml-1" title="Item Fixo"></i>` : '';
+        const statusIcon = item.isPaid
+            ? '<i class="fas fa-check-circle status-icon status-paid"></i>'
+            : '<i class="fas fa-clock status-icon status-pending"></i>';
 
         row.innerHTML = `
-            <td class="px-2 py-4 whitespace-nowrap text-center no-print">
-                <i class="fas ${item.isPaid ? 'fa-toggle-on text-green-500' : 'fa-toggle-off text-red-500'} status-toggle" data-id="${item.id}" title="${item.isPaid ? 'Paga' : 'Pendente'}"></i>
+            <td class="td-status no-print">
+                <span class="status-toggle-wrap" data-id="${item.id}" title="${item.isPaid ? 'Paga' : 'Pendente'}">${statusIcon}</span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">${categories[item.category] || item.category}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${item.description}${recurringIcon}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${formatCurrency(item.amount)}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
-            <td class="px-6 py-4 whitespace-nowrap">${getPaymentMethodBadge(item.payment)}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right no-print">
-                <button class="edit-btn" data-id="${item.id}" data-type="expense"><i class="fas fa-edit text-indigo-600"></i></button>
-                <button class="delete-btn ml-4" data-id="${item.id}" data-type="expense"><i class="fas fa-trash text-red-600"></i></button>
+            <td class="td-tag"><span class="category-badge">${categories[item.category] || item.category}</span></td>
+            <td class="td-main td-desc">${item.description}${recurringIcon}</td>
+            <td class="td-value text-right">${formatCurrency(item.amount)}</td>
+            <td class="td-date">${new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td class="td-tag">${getPaymentMethodBadge(item.payment)}</td>
+            <td class="td-actions text-right no-print">
+                <div class="action-group">
+                    <button class="edit-btn action-btn" data-id="${item.id}" data-type="expense" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="delete-btn action-btn action-btn-danger" data-id="${item.id}" data-type="expense" title="Excluir"><i class="fas fa-trash"></i></button>
+                </div>
             </td>`;
         return row;
     });
     
-    document.querySelectorAll('#expenses-table .status-toggle').forEach(btn => btn.addEventListener('click', () => callbacks.onStatusToggle(btn.dataset.id)));
+    document.querySelectorAll('#expenses-table .status-toggle-wrap').forEach(btn => btn.addEventListener('click', () => callbacks.onStatusToggle(btn.dataset.id)));
     document.querySelectorAll('#expenses-table .edit-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onEdit(btn.dataset.type, btn.dataset.id)));
     document.querySelectorAll('#expenses-table .delete-btn').forEach(btn => btn.addEventListener('click', () => callbacks.onDelete(btn.dataset.type, btn.dataset.id)));
 }
@@ -720,9 +864,30 @@ export function generateReport(state, totals) {
 
     const reportType = document.getElementById('report-type').value;
     const isDarkMode = document.documentElement.classList.contains('dark');
-    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-    const textColor = isDarkMode ? '#d1d5db' : '#374151';
+    const gridColor = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    const textColor = isDarkMode ? '#cbd5e1' : '#374151';
     let chartConfig = {};
+
+    const professionalTooltip = {
+        backgroundColor: isDarkMode ? 'rgba(15,20,35,0.95)' : 'rgba(255,255,255,0.97)',
+        titleColor: isDarkMode ? '#e2e8f0' : '#1e293b',
+        bodyColor: isDarkMode ? '#94a3b8' : '#475569',
+        borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+        borderWidth: 1,
+        cornerRadius: 10,
+        padding: 12,
+        titleFont: { size: 13, weight: '600', family: 'Inter' },
+        bodyFont: { size: 12, family: 'Inter' },
+        displayColors: true,
+        boxPadding: 4,
+        usePointStyle: true,
+        callbacks: {
+            label: function(c) {
+                const val = c.parsed?.y ?? c.parsed ?? c.raw ?? 0;
+                return ` ${c.dataset.label || c.label}: R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+            }
+        }
+    };
 
     const chartOptions = {
         responsive: true,
@@ -730,43 +895,54 @@ export function generateReport(state, totals) {
         plugins: {
             legend: {
                 labels: {
-                    color: textColor
+                    color: textColor, usePointStyle: true, pointStyle: 'circle',
+                    padding: 16, font: { size: 12, weight: '500', family: 'Inter' }
                 }
-            }
+            },
+            tooltip: professionalTooltip
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: { color: gridColor },
-                ticks: { color: textColor }
+                grid: { color: gridColor, drawBorder: false },
+                border: { display: false },
+                ticks: { color: textColor, font: { size: 11, family: 'Space Grotesk' }, padding: 8 }
             },
             x: {
-                grid: { color: gridColor },
-                ticks: { color: textColor }
+                grid: { display: false },
+                border: { display: false },
+                ticks: { color: textColor, font: { size: 11, family: 'Inter' }, padding: 8 }
             }
         }
     };
 
-    switch (reportType) {
-        case 'expenses-by-category':
-            const categoryData = Object.keys(expenseCategories).map(catKey =>
-                expenses.filter(e => e.category === catKey).reduce((sum, e) => sum + e.amount, 0)
-            );
-            const categoryLabels = Object.values(expenseCategories);
-            chartConfig = {
-                type: 'pie',
-                data: {
-                    labels: categoryLabels,
-                    datasets: [{
-                        label: 'Despesas por Categoria',
-                        data: categoryData,
-                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#f59e0b', '#22c55e', '#3b82f6', '#6b7280', '#ec4899', '#84cc16']
-                    }]
-                },
-                options: chartOptions
-            };
-            break;
+    const doughnutOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '58%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    color: textColor, usePointStyle: true, pointStyle: 'circle',
+                    padding: 14, font: { size: 11, weight: '500', family: 'Inter' }
+                }
+            },
+            tooltip: {
+                ...professionalTooltip,
+                callbacks: {
+                    label: function(c) {
+                        const total = c.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total ? ((c.parsed / total) * 100).toFixed(1) : 0;
+                        return ` ${c.label}: R$ ${c.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${pct}%)`;
+                    }
+                }
+            }
+        },
+        animation: { animateRotate: true, animateScale: true, duration: 700, easing: 'easeOutQuart' }
+    };
 
+    switch (reportType) {
         case 'income-breakdown':
             chartConfig = {
                 type: 'doughnut',
@@ -775,10 +951,14 @@ export function generateReport(state, totals) {
                     datasets: [{
                         label: 'Detalhamento da Renda',
                         data: [totals.fixedIncome, totals.variableIncome, totals.extraIncome],
-                        backgroundColor: ['#22c55e', '#3b82f6', '#8b5cf6']
+                        backgroundColor: ['#3ecf8e', '#5c9cf5', '#a78bfa'],
+                        hoverBackgroundColor: ['#5ddda4', '#7bb4f7', '#bfa3fc'],
+                        borderWidth: isDarkMode ? 2 : 3,
+                        borderColor: isDarkMode ? '#0c1420' : '#ffffff',
+                        hoverOffset: 6
                     }]
                 },
-                options: chartOptions
+                options: doughnutOptions
             };
             break;
 
@@ -786,28 +966,59 @@ export function generateReport(state, totals) {
             const paidAmount = expenses.filter(e => e.isPaid).reduce((sum, e) => sum + e.amount, 0);
             const pendingAmount = totals.totalExpenses - paidAmount;
             chartConfig = {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                     labels: ['Despesas Pagas', 'Despesas Pendentes'],
                     datasets: [{
                         label: 'Status das Despesas',
                         data: [paidAmount, pendingAmount],
-                        backgroundColor: ['#22c55e', '#ef4444']
+                        backgroundColor: ['#3ecf8e', '#f06c6c'],
+                        hoverBackgroundColor: ['#5ddda4', '#f88a8a'],
+                        borderWidth: isDarkMode ? 2 : 3,
+                        borderColor: isDarkMode ? '#0c1420' : '#ffffff',
+                        hoverOffset: 6
                     }]
                 },
-                options: chartOptions
+                options: doughnutOptions
             };
             break;
             
         case 'income-vs-expenses':
         default:
+            // Gradient bars
+            const incomeBarGrad = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight || 250);
+            incomeBarGrad.addColorStop(0, isDarkMode ? '#3ecf8e' : '#22c55e');
+            incomeBarGrad.addColorStop(1, isDarkMode ? 'rgba(62,207,142,0.3)' : 'rgba(34,197,94,0.3)');
+
+            const expenseBarGrad = ctx.createLinearGradient(0, 0, 0, ctx.canvas.clientHeight || 250);
+            expenseBarGrad.addColorStop(0, isDarkMode ? '#f06c6c' : '#ef4444');
+            expenseBarGrad.addColorStop(1, isDarkMode ? 'rgba(240,108,108,0.3)' : 'rgba(239,68,68,0.3)');
+
             chartConfig = {
                 type: 'bar',
                 data: {
                     labels: ['Resumo do Período'],
                     datasets: [
-                        { label: 'Renda', data: [totals.totalIncome], backgroundColor: 'rgba(75, 192, 192, 0.7)' },
-                        { label: 'Despesas', data: [totals.totalExpenses], backgroundColor: 'rgba(255, 99, 132, 0.7)' }
+                        {
+                            label: 'Renda',
+                            data: [totals.totalIncome],
+                            backgroundColor: incomeBarGrad,
+                            hoverBackgroundColor: isDarkMode ? '#5ddda4' : '#4ade80',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            barPercentage: 0.5,
+                            categoryPercentage: 0.6
+                        },
+                        {
+                            label: 'Despesas',
+                            data: [totals.totalExpenses],
+                            backgroundColor: expenseBarGrad,
+                            hoverBackgroundColor: isDarkMode ? '#f88a8a' : '#f87171',
+                            borderRadius: 8,
+                            borderSkipped: false,
+                            barPercentage: 0.5,
+                            categoryPercentage: 0.6
+                        }
                     ]
                 },
                 options: chartOptions

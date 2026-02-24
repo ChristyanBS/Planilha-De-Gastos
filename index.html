@@ -32,28 +32,32 @@
     
     <!-- Sidebar -->
     <aside id="sidebar">
-      <div class="sidebar-brand">
-        <h1><i class="fas fa-wallet"></i> Finanças</h1>
-        <p id="header-subtitle"></p>
+      <!-- Profile section -->
+      <div class="sidebar-profile">
+        <div class="sidebar-avatar" id="sidebar-avatar">CB</div>
+        <div class="sidebar-profile-info">
+          <span class="sidebar-profile-name">Christyan Bernardo</span>
+          <span class="sidebar-profile-role">CGR Trainee Assistant</span>
+        </div>
       </div>
+
       <nav>
         <span class="sidebar-section-label">Principal</span>
         <button data-tab="dashboard" class="tab-btn sidebar-btn"><i class="fas fa-chart-line"></i> Dashboard</button>
-        
-        <span class="sidebar-section-label">Transações</span>
-        <button data-tab="transactions" class="tab-btn sidebar-btn"><i class="fas fa-arrow-right-arrow-left"></i> Visão Mensal</button>
+        <button data-tab="transactions" class="tab-btn sidebar-btn"><i class="fas fa-calendar-alt"></i> Visão Mensal</button>
+
+        <span class="sidebar-section-label">Gestão</span>
         <button data-tab="income" class="tab-btn sidebar-btn"><i class="fas fa-hand-holding-dollar"></i> Renda</button>
         <button data-tab="expenses" class="tab-btn sidebar-btn"><i class="fas fa-receipt"></i> Despesas</button>
         <button data-tab="hours" class="tab-btn sidebar-btn"><i class="fas fa-clock"></i> Horas Extras</button>
-        <button data-tab="recurring" class="tab-btn sidebar-btn"><i class="fas fa-sync-alt"></i> Fixos</button>
-        
-        <span class="sidebar-section-label">Planejamento</span>
+
+        <span class="sidebar-section-label">Estratégia</span>
         <button data-tab="goals" class="tab-btn sidebar-btn"><i class="fas fa-bullseye"></i> Metas</button>
         <button data-tab="investments" class="tab-btn sidebar-btn"><i class="fas fa-gem"></i> Investimentos</button>
-        
+
         <span class="sidebar-section-label">Ferramentas</span>
+        <button data-tab="recurring" class="tab-btn sidebar-btn"><i class="fas fa-sync-alt"></i> Fixos</button>
         <button data-tab="calculator" class="tab-btn sidebar-btn"><i class="fas fa-calculator"></i> Calculadora</button>
-        <button data-tab="reports" class="tab-btn sidebar-btn"><i class="fas fa-chart-pie"></i> Relatórios</button>
         <button data-tab="account" class="tab-btn sidebar-btn"><i class="fas fa-user-cog"></i> Minha Conta</button>
       </nav>
       <div class="sidebar-footer">
@@ -105,6 +109,20 @@
         
         <!-- ===== DASHBOARD TAB ===== -->
         <div id="dashboard-content" class="tab-content">
+          <!-- Camada de scanlines (profundidade futurista) -->
+          <div class="dash-scanline"></div>
+
+          <!-- Banner de resultado de importação CSV -->
+          <div id="csv-import-result">
+            <span class="csv-result-icon">✅</span>
+            <div class="csv-result-stats">
+              <span class="csv-result-label">Extrato importado:</span>
+              <span class="csv-stat-pill income-pill"><i class="fas fa-arrow-up"></i> <span class="csv-income-count">0 entradas</span></span>
+              <span class="csv-stat-pill expense-pill"><i class="fas fa-arrow-down"></i> <span class="csv-expense-count">0 saídas</span></span>
+            </div>
+            <button id="csv-result-close" title="Fechar"><i class="fas fa-times"></i></button>
+          </div>
+
           <div class="summary-cards">
             <!-- Flip Card: Income -->
             <div class="flip-card">
@@ -169,6 +187,19 @@
               <div class="chart-container"><canvas id="dashboard-pie-chart"></canvas></div>
             </div>
           </div>
+
+                    <div class="chart-wrapper" id="dashboard-reports-wrapper">
+                        <h4><i class="fas fa-chart-bar" style="color:var(--accent);margin-right:0.5rem;"></i>Relatórios Visuais</h4>
+                        <div class="panel-actions" style="margin:0 0 0.85rem 0;">
+                            <select id="report-type" class="form-input" style="width:auto;min-width:220px;">
+                                <option value="income-vs-expenses">Renda vs Despesas</option>
+                                <option value="paid-vs-pending">Pagas vs Pendentes</option>
+                                <option value="income-breakdown">Detalhamento da Renda</option>
+                            </select>
+                            <button id="generate-report-btn" class="btn-secondary"><i class="fas fa-chart-bar"></i> Gerar</button>
+                        </div>
+                        <div class="chart-container"><canvas id="report-chart"></canvas></div>
+                    </div>
           
           <div class="secondary-cards">
             <div class="secondary-card">
@@ -501,16 +532,6 @@
                     </div>
                 </div>
             </div>
-            <div id="reports-content" class="tab-content hidden">
-                <div class="panel-header">
-                    <h3>Relatórios Visuais</h3>
-                    <div class="panel-actions">
-                        <select id="report-type" class="form-input" style="width:auto;min-width:180px;"><option value="income-vs-expenses">Renda vs Despesas</option><option value="expenses-by-category">Despesas por Categoria</option><option value="paid-vs-pending">Pagas vs Pendentes</option><option value="income-breakdown">Detalhamento da Renda</option></select>
-                        <button id="generate-report-btn" class="btn-secondary"><i class="fas fa-chart-bar"></i> Gerar</button>
-                    </div>
-                </div>
-                <div class="chart-container"><canvas id="report-chart"></canvas></div>
-            </div>
             <div id="account-content" class="tab-content hidden">
     <div class="panel-header">
         <h3>Minha Conta & Configurações</h3>
@@ -523,6 +544,29 @@
             <h4 class="settings-section-title">Perfil</h4>
             <p class="settings-section-desc">Você está logado com o email:</p>
             <p id="user-email-display" class="text-lg font-bold" style="color:var(--accent);"></p>
+        </div>
+    </div>
+
+    <!-- Profile Photo -->
+    <div class="settings-section">
+        <div class="settings-section-icon"><i class="fas fa-camera"></i></div>
+        <div class="settings-section-body">
+            <h4 class="settings-section-title">Foto de Perfil</h4>
+            <p class="settings-section-desc">Escolha uma foto para aparecer na barra lateral.</p>
+            <div class="profile-photo-editor">
+                <div class="profile-photo-preview" id="profile-photo-preview">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="profile-photo-actions">
+                    <label class="btn-upload-photo" for="profile-photo-input">
+                        <i class="fas fa-upload"></i> Escolher Foto
+                        <input type="file" id="profile-photo-input" accept="image/*" hidden>
+                    </label>
+                    <button id="profile-photo-remove-btn" class="btn-remove-photo hidden">
+                        <i class="fas fa-trash-alt"></i> Remover
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -959,24 +1003,24 @@
     </div>
 </div>
 
-<nav id="bottom-nav" class="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 shadow-lg border-t border-gray-200 dark:border-gray-700 flex justify-around z-40">
-    <button data-tab="dashboard" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+<nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 shadow-lg flex justify-around z-40">
+    <button data-tab="dashboard" class="tab-btn flex-1 flex flex-col items-center justify-center p-2">
         <i class="fas fa-chart-line text-xl mb-1"></i>
         <span class="text-xs font-medium">Home</span>
     </button>
-    <button data-tab="income" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+    <button data-tab="income" class="tab-btn flex-1 flex flex-col items-center justify-center p-2">
         <i class="fas fa-hand-holding-dollar text-xl mb-1"></i>
         <span class="text-xs font-medium">Renda</span>
     </button>
-    <button data-tab="transactions" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+    <button data-tab="transactions" class="tab-btn flex-1 flex flex-col items-center justify-center p-2">
         <i class="fas fa-arrow-right-arrow-left text-xl mb-1"></i>
         <span class="text-xs font-medium">Transações</span>
     </button>
-    <button data-tab="goals" class="tab-btn flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+    <button data-tab="goals" class="tab-btn flex-1 flex flex-col items-center justify-center p-2">
         <i class="fas fa-bullseye text-xl mb-1"></i>
         <span class="text-xs font-medium">Metas</span>
     </button>
-    <button id="more-menu-btn" class="flex-1 flex flex-col items-center justify-center p-2 text-gray-500 dark:text-gray-400">
+    <button id="more-menu-btn" class="flex-1 flex flex-col items-center justify-center p-2">
         <i class="fas fa-bars text-xl mb-1"></i>
         <span class="text-xs font-medium">Mais</span>
     </button>
@@ -1010,6 +1054,63 @@
           });
         });
       }
+    </script>
+
+    <!-- Profile Photo Feature -->
+    <script>
+      (function () {
+        function applyProfilePhoto(dataURL) {
+          var avatar = document.getElementById('sidebar-avatar');
+          var preview = document.getElementById('profile-photo-preview');
+          var removeBtn = document.getElementById('profile-photo-remove-btn');
+          if (!avatar) return;
+          if (dataURL) {
+            avatar.innerHTML = '<img src="' + dataURL + '" alt="Foto de perfil" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">';
+            if (preview) preview.innerHTML = '<img src="' + dataURL + '" alt="Prévia">';
+            if (removeBtn) removeBtn.classList.remove('hidden');
+          } else {
+            avatar.innerHTML = 'CB';
+            if (preview) preview.innerHTML = '<i class="fas fa-user"></i>';
+            if (removeBtn) removeBtn.classList.add('hidden');
+          }
+        }
+
+        function initProfilePhoto() {
+          var stored = localStorage.getItem('profilePhotoURL');
+          applyProfilePhoto(stored || null);
+
+          var input = document.getElementById('profile-photo-input');
+          var removeBtn = document.getElementById('profile-photo-remove-btn');
+
+          if (input) {
+            input.addEventListener('change', function (e) {
+              var file = e.target.files[0];
+              if (!file) return;
+              var reader = new FileReader();
+              reader.onload = function (ev) {
+                localStorage.setItem('profilePhotoURL', ev.target.result);
+                applyProfilePhoto(ev.target.result);
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+
+          if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+              localStorage.removeItem('profilePhotoURL');
+              applyProfilePhoto(null);
+              var input2 = document.getElementById('profile-photo-input');
+              if (input2) input2.value = '';
+            });
+          }
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initProfilePhoto);
+        } else {
+          initProfilePhoto();
+        }
+      })();
     </script>
 </body>
 </html>

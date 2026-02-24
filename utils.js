@@ -48,8 +48,20 @@ export function getPayPeriodRange(year, month, payPeriodStartDay) {
 }
 
 export function getOvertimePeriodRange(year, month, overtimeStartDay, overtimeEndDay) {
-    const startDate = new Date(year, month - 2, overtimeStartDay);
-    const endDate = new Date(year, month - 1, overtimeEndDay);
+    const normalizedStartDay = Number.isFinite(overtimeStartDay) ? overtimeStartDay : 24;
+    const normalizedEndDay = Number.isFinite(overtimeEndDay) ? overtimeEndDay : 23;
+
+    let startDate;
+    let endDate;
+
+    if (normalizedStartDay <= normalizedEndDay) {
+        startDate = new Date(year, month - 1, normalizedStartDay);
+        endDate = new Date(year, month - 1, normalizedEndDay);
+    } else {
+        startDate = new Date(year, month - 2, normalizedStartDay);
+        endDate = new Date(year, month - 1, normalizedEndDay);
+    }
+
     return { startDate, endDate };
 }
 
