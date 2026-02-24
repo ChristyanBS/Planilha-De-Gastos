@@ -263,6 +263,180 @@ export function renderDashboardCharts(state, totals) {
     }
 }
 
+// --- Card Labels / Colors Map ---
+const CARD_LABELS = {
+    nubank: 'Nubank', picpay: 'PicPay', santander: 'Santander', itau: 'Itaú',
+    bradesco: 'Bradesco', c6bank: 'C6 Bank', inter: 'Inter', caixa: 'Caixa',
+    bb: 'Banco do Brasil', outro: 'Outro'
+};
+const CARD_COLORS = {
+    nubank: '#8B5CF6', picpay: '#21C25E', santander: '#EC0000', itau: '#003399',
+    bradesco: '#CC092F', c6bank: '#2A2A2A', inter: '#FF7A00', caixa: '#005CA9',
+    bb: '#FCBA03', outro: '#6B7280'
+};
+const CARD_COLORS_HOVER = {
+    nubank: '#A78BFA', picpay: '#34D073', santander: '#FF3333', itau: '#1A5ADB',
+    bradesco: '#E02040', c6bank: '#4A4A4A', inter: '#FF9B40', caixa: '#2080D0',
+    bb: '#FFD030', outro: '#8B95A3'
+};
+
+let dashboardCardChartInstance;
+
+/**
+ * Renders the card spending doughnut chart and pill summary.
+ */
+export function renderCardSpendingChart(expenses) {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const textColor = isDarkMode ? '#cbd5e1' : '#374151';
+
+    // Aggregate by card
+    const cardTotals = {};
+    expenses.forEach(e => {
+        const card = e.card || '';
+        if (!card) return;
+        cardTotals[card] = (cardTotals[card] || 0) + (e.amount || 0);
+    });
+
+    // Render pills
+    const pillsContainer = document.getElementById('card-spending-pills');
+    if (pillsContainer) {
+        let pillsHTML = '';
+        for (const [key, total] of Object.entries(cardTotals).sort((a, b) => b[1] - a[1])) {
+            const label = CARD_LABELS[key] || key;
+            const color = CARD_COLORS[key] || '#6B7280';
+            pillsHTML += `<span class="card-pill" style="--pill-color:${color}"><span class="card-pill-dot" style="background:${color}"></span>${label}: <strong>${formatCurrency(total)}</strong></span>`;
+        }
+        if (!pillsHTML) {
+            pillsHTML = '<span class="card-pill card-pill-empty"><i class="fas fa-info-circle"></i> Nenhuma despesa com cartão/banco atribuído</span>';
+        }
+        pillsContainer.innerHTML = pillsHTML;
+    }
+
+    // Chart
+    const ctx = document.getElementById('dashboard-card-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (dashboardCardChartInstance) dashboardCardChartInstance.destroy();
+
+    const labels = Object.keys(cardTotals).map(k => CARD_LABELS[k] || k);
+    const data = Object.values(cardTotals);
+    const bgColors = Object.keys(cardTotals).map(k => CARD_COLORS[k] || '#6B7280');
+    const hoverColors = Object.keys(cardTotals).map(k => CARD_COLORS_HOVER[k] || '#8B95A3');
+
+    if (labels.length === 0) {
+        // Clear canvas
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return;
+    }
+
+    const centerPlugin = {
+        id: 'cardCenterText',
+        afterDraw(chart) {
+            const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+            if (total === 0) return;
+            const { ctx: c, chartArea } = chart;
+            const cx = (chartArea.left + chartArea.right) / 2;
+            const cy = (chartArea.top + chartArea.bottom) / 2;
+            c.save();
+            c.textAlign = 'center';
+            c.textBaseline = 'middle';
+            c.font = '600 11px Inter';
+            c.fillStyle = isDarkMode ? 'rgba(203,213,225,0.5)' : 'rgba(55,65,81,0.5)';
+            c.fillText('Total', cx, cy - 10);
+            c.font = '700 16px "Space Grotesk"';
+            c.fillStyle = isDarkMode ? '#e2e8f0' : '#1e293b';
+            c.fillText('R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 0 }), cx, cy + 10);
+            c.restore();
+        }
+    };
+
+    dashboardCardChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: bgColors,
+                hoverBackgroundColor: hoverColors,
+                borderWidth: isDarkMode ? 2 : 3,
+                borderColor: isDarkMode ? '#0c1420' : '#ffffff',
+                hoverBorderColor: isDarkMode ? '#1a2540' : '#f8fafc',
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            radius: '90%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor, usePointStyle: true, pointStyle: 'circle',
+                        padding: 14, font: { size: 11, weight: '500', family: 'Inter' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: isDarkMode ? 'rgba(15,20,35,0.95)' : 'rgba(255,255,255,0.97)',
+                    titleColor: isDarkMode ? '#e2e8f0' : '#1e293b',
+                    bodyColor: isDarkMode ? '#94a3b8' : '#475569',
+                    borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                    borderWidth: 1, cornerRadius: 10, padding: 12,
+                    titleFont: { size: 13, weight: '600', family: 'Inter' },
+                    bodyFont: { size: 12, family: 'Inter' },
+                    displayColors: true, boxPadding: 4, usePointStyle: true,
+                    callbacks: {
+                        label: function(ctx) {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = total ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: R$ ${ctx.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${percent}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateRotate: true,
+                animateScale: true,
+                duration: 800,
+                easing: 'easeOutQuart'
+            }
+        },
+        plugins: [centerPlugin]
+    });
+}
+
+/**
+ * Renders the previous months expense cards in a horizontal track.
+ */
+export function renderPreviousMonths(monthsData) {
+    const track = document.getElementById('prev-months-track');
+    if (!track) return;
+
+    if (!monthsData || monthsData.length === 0) {
+        track.innerHTML = '<span class="prev-month-empty">Sem dados de meses anteriores</span>';
+        return;
+    }
+
+    // Find max for bar height scaling
+    const maxExpense = Math.max(...monthsData.map(m => m.totalExpenses), 1);
+
+    let html = '';
+    monthsData.forEach((m, i) => {
+        const barH = Math.max(8, (m.totalExpenses / maxExpense) * 100);
+        const formattedVal = formatCurrency(m.totalExpenses);
+        html += `<div class="prev-month-card" data-index="${i}">
+            <div class="prev-month-bar-wrap">
+                <div class="prev-month-bar" style="height:${barH}%"></div>
+            </div>
+            <div class="prev-month-value">${formattedVal}</div>
+            <div class="prev-month-label">${m.label}</div>
+        </div>`;
+    });
+
+    track.innerHTML = html;
+}
+
 // --- Funções de Notificação ---
 
 /**
@@ -312,6 +486,12 @@ export function showAdvancedConfirmation({ title, message, confirmText = 'Confir
 }
 
 export function showToast(message, type = 'info', duration = 4000) {
+    // Use new GSAP-animated toast system if available
+    if (window.AppComponents?.Toast) {
+        window.AppComponents.Toast.show(message, type, duration);
+        return;
+    }
+    // Fallback to old toast
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
@@ -334,6 +514,18 @@ export function showToast(message, type = 'info', duration = 4000) {
 }
 
 export function showConfirmation(title, message, confirmButtonClass = 'bg-red-600 hover:bg-red-700') {
+    // Use animated confirmation modal if available
+    if (window.AppComponents?.Confirm) {
+        return window.AppComponents.Confirm.show({
+            title: title,
+            message: message,
+            confirmText: 'Confirmar',
+            cancelText: 'Cancelar',
+            icon: 'fa-exclamation-triangle',
+            type: 'danger'
+        });
+    }
+    // Fallback
     return new Promise(resolve => {
         const modal = document.getElementById('confirmation-modal');
         const titleEl = document.getElementById('confirmation-title');
@@ -522,6 +714,20 @@ export function populateCategoryDropdown(expenseCategories) {
         select.appendChild(option);
     }
     select.value = currentVal;
+
+    // Also populate drawer category dropdown
+    const drawerSelect = document.getElementById('drawer-expense-category');
+    if (drawerSelect) {
+        const dCurrentVal = drawerSelect.value;
+        drawerSelect.innerHTML = '<option value="">Selecione a Categoria</option>';
+        for (const key in expenseCategories) {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = expenseCategories[key];
+            drawerSelect.appendChild(opt);
+        }
+        drawerSelect.value = dCurrentVal;
+    }
 }
 
 // --- Funções de Atualização de Conteúdo ---
@@ -578,22 +784,23 @@ export function updatePeriodDisplay(periodRange, overtimeRange) {
     document.getElementById('hours-period-display').textContent = `Período de apuração para horas: ${overtimeRange.startDate.toLocaleDateString('pt-BR')} a ${overtimeRange.endDate.toLocaleDateString('pt-BR')}`;
 }
 
-function renderCustomListResults(listArray, listElementId, currencyColorClass = '') {
+function renderCustomListResults(listArray, listElementId, isDeduction = false) {
     const listElement = document.getElementById(listElementId);
     if (!listElement) return;
     listElement.innerHTML = '';
     listArray.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'flex justify-between text-sm';
-        const value = listElementId === 'res-custom-discounts-list' ? -item.value : item.value;
-        div.innerHTML = `<p>${item.name}</p><p class="${currencyColorClass}">${formatCurrency(value)}</p>`;
-        listElement.appendChild(div);
+        const tr = document.createElement('tr');
+        const val = isDeduction ? item.value : item.value;
+        tr.innerHTML = `<td>${item.name}</td><td></td><td${isDeduction ? ' class="calc-val-red"' : ''}>${formatNumber(val)}</td>`;
+        listElement.appendChild(tr);
     });
 }
 
 export function updateCalculatorDisplay(totals, settings, callbacks) {
-    document.getElementById('calc-ot-50-display').textContent = formatMinutesToHours(totals.totalOvertime50);
-    document.getElementById('calc-ot-100-display').textContent = formatMinutesToHours(totals.totalOvertime100);
+    const el50 = document.getElementById('calc-ot-50-display');
+    const el100 = document.getElementById('calc-ot-100-display');
+    if (el50) el50.textContent = formatMinutesToHours(totals.totalOvertime50);
+    if (el100) el100.textContent = formatMinutesToHours(totals.totalOvertime100);
     
     const renderEditableCustomList = (listName, listArray, listElementId, deleteCallback) => {
         const list = document.getElementById(listElementId);
@@ -601,8 +808,8 @@ export function updateCalculatorDisplay(totals, settings, callbacks) {
         list.innerHTML = '';
         listArray.forEach((item, index) => {
             const div = document.createElement('div');
-            div.className = 'flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded';
-            div.innerHTML = `<span class="text-sm">${item.name} - ${formatCurrency(item.value)}</span><button class="delete-${listName}-btn text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-times-circle"></i></button>`;
+            div.className = 'calc-custom-item';
+            div.innerHTML = `<span>${item.name} — ${formatCurrency(item.value)}</span><button class="delete-${listName}-btn" data-index="${index}"><i class="fas fa-times"></i></button>`;
             list.appendChild(div);
         });
         document.querySelectorAll(`.delete-${listName}-btn`).forEach(btn => btn.addEventListener('click', () => deleteCallback(btn.dataset.index)));
@@ -612,19 +819,69 @@ export function updateCalculatorDisplay(totals, settings, callbacks) {
     renderEditableCustomList('discount', settings.customDiscounts, 'custom-discounts-list', callbacks.onDeleteDiscount);
 }
 
+function formatNumber(v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
 export function displaySalaryResults(results, settings) {
-    const fields = {
-        'res-base-salary': results.baseSalary, 'res-ot-50': results.totalOt50, 'res-ot-100': results.totalOt100,
-        'res-dsr': results.dsr, 'res-total-gross': results.totalGross, 'res-net-salary': results.netSalary, 'res-fgts': results.fgts
+    const p = results._params || {};
+    const fmt = (v) => formatNumber(v);
+
+    // Valor hora
+    const rateEl = document.getElementById('res-hourly-rate');
+    if (rateEl) rateEl.textContent = `Valor hora: ${formatCurrency(results.valorHora)}`;
+
+    // Vencimentos
+    document.getElementById('res-ref-base').textContent = `${p.workload || 220}h`;
+    document.getElementById('res-base-salary').textContent = fmt(results.baseSalary);
+
+    const setRow = (rowId, refId, valId, refText, value) => {
+        const row = document.getElementById(rowId);
+        if (row) row.style.display = value > 0.005 ? '' : 'none';
+        if (refId) document.getElementById(refId).textContent = refText;
+        document.getElementById(valId).textContent = fmt(value);
     };
-    for(const id in fields) document.getElementById(id).textContent = formatCurrency(fields[id]);
 
-    document.getElementById('res-inss').textContent = formatCurrency(results.inss > 0 ? -results.inss : 0);
-    document.getElementById('res-irrf').textContent = formatCurrency(results.irrf > 0 ? -results.irrf : 0);
-    document.getElementById('res-total-discounts').textContent = formatCurrency(results.totalDiscounts > 0 ? -results.totalDiscounts : 0);
+    setRow('res-ot50-row', 'res-ref-ot50', 'res-ot-50',
+        p.ot50Hours > 0 ? `${fmt(p.ot50Hours)}h` : '—', results.totalOt50);
+    setRow('res-ot100-row', 'res-ref-ot100', 'res-ot-100',
+        p.ot100Hours > 0 ? `${fmt(p.ot100Hours)}h` : '—', results.totalOt100);
+    setRow('res-night-row', 'res-ref-night', 'res-night',
+        p.nightHours > 0 ? `${fmt(p.nightHours)}h (${fmt(p.nightRate)}%)` : '—', results.nightValue);
+    setRow('res-dsr-row', 'res-ref-dsr', 'res-dsr',
+        p.dsrDays > 0 ? `${p.dsrDays}/${p.workingDays}` : '', results.dsr);
 
-    renderCustomListResults(settings.customProventos, 'res-custom-proventos-list');
-    renderCustomListResults(settings.customDiscounts, 'res-custom-discounts-list', 'text-red-600 dark:text-red-400');
+    document.getElementById('res-total-gross').textContent = fmt(results.totalGross);
+
+    // Descontos
+    const absRow = document.getElementById('res-absence-row');
+    if (absRow) {
+        absRow.style.display = results.absenceDeduction > 0.005 ? '' : 'none';
+        document.getElementById('res-ref-absence').textContent = p.absenceHours > 0 ? `${fmt(p.absenceHours)}h` : '—';
+        document.getElementById('res-absence').textContent = fmt(results.absenceDeduction);
+    }
+
+    document.getElementById('res-ref-inss').textContent = `${fmt(results.inssRate)}%`;
+    document.getElementById('res-inss').textContent = fmt(results.inss);
+
+    const irrfRow = document.getElementById('res-irrf-row');
+    if (irrfRow) irrfRow.style.display = results.irrf > 0.005 ? '' : 'none';
+    document.getElementById('res-irrf').textContent = fmt(results.irrf);
+
+    document.getElementById('res-total-discounts').textContent = fmt(results.totalDiscounts);
+
+    // Líquido
+    document.getElementById('res-net-salary').textContent = formatCurrency(results.netSalary);
+
+    // Rodapé
+    const inssBaseEl = document.getElementById('res-inss-base');
+    const irrfBaseEl = document.getElementById('res-irrf-base');
+    const fgtsEl = document.getElementById('res-fgts');
+    if (inssBaseEl) inssBaseEl.textContent = fmt(results.inssBase);
+    if (irrfBaseEl) irrfBaseEl.textContent = fmt(results.irrfBase);
+    if (fgtsEl) fgtsEl.textContent = fmt(results.fgts);
+
+    // Custom lists
+    renderCustomListResults(settings.customProventos, 'res-custom-proventos-list', false);
+    renderCustomListResults(settings.customDiscounts, 'res-custom-discounts-list', true);
 }
 
 // --- Funções de Tabela ---
@@ -678,7 +935,18 @@ function createTable(containerId, data, renderRowFn) {
     tableBody.innerHTML = '';
     if (data.length === 0) {
         const colSpan = tableBody.closest('table')?.querySelector('thead tr')?.cells.length || 5;
-        tableBody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-4 text-gray-500">Nenhum item registrado.</td></tr>`;
+        // Map container to empty state type
+        const emptyTypeMap = {
+            'incomes-table': 'income', 'expenses-table': 'expense', 'hours-table': 'hours',
+            'goals-table': 'goals', 'investments-table': 'investments',
+            'recurring-incomes-table': 'recurringIncome', 'recurring-expenses-table': 'recurringExpense'
+        };
+        const emptyType = emptyTypeMap[containerId] || 'generic';
+        if (window.AppComponents?.EmptyStates) {
+            tableBody.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state-td">${window.AppComponents.EmptyStates.getHTML(emptyType)}</td></tr>`;
+        } else {
+            tableBody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-4 text-gray-500">Nenhum item registrado.</td></tr>`;
+        }
         return;
     }
     data.forEach(item => tableBody.appendChild(renderRowFn(item)));

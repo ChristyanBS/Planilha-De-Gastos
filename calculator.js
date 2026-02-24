@@ -1,123 +1,165 @@
-// Arquivo: calculator.js
-// Contém toda a lógica de negócio para o cálculo de salário líquido.
+// ================================================================
+// calculator.js — Módulo puro de cálculo de salário líquido (CLT)
+// Fórmulas validadas com holerites reais (Nov/Dez 2025 e Jan 2026)
+// ================================================================
 
-import { parseBrazilianNumber } from './utils.js';
+// ── Tabela INSS 2025 (progressiva) ──────────────────────────
+const INSS_FAIXAS = [
+    { limite: 1518.00, aliquota: 0.075 },
+    { limite: 2793.88, aliquota: 0.09  },
+    { limite: 4190.83, aliquota: 0.12  },
+    { limite: 8157.41, aliquota: 0.14  },
+];
+const INSS_TETO = 951.63;
 
-/**
- * Calcula a contribuição do INSS de forma progressiva, com base no salário bruto.
- * @param {number} grossSalary - O salário bruto total.
- * @returns {number} O valor da contribuição do INSS.
- */
-function calculateINSS(grossSalary) {
-    // Tabela INSS (valores de exemplo, podem variar anualmente)
-    const TETO_INSS = 951.63; // Valor máximo de contribuição
-    
-    if (grossSalary <= 1518.00) {
-        return grossSalary * 0.075;
+// ── Tabela IRRF 2025 ───────────────────────────────────────
+const IRRF_FAIXAS = [
+    { limite: 2259.20, aliquota: 0,     deducao: 0      },
+    { limite: 2826.65, aliquota: 0.075, deducao: 169.44 },
+    { limite: 3751.05, aliquota: 0.15,  deducao: 381.44 },
+    { limite: 4664.68, aliquota: 0.225, deducao: 662.77 },
+    { limite: Infinity, aliquota: 0.275, deducao: 896.00 },
+];
+const DEDUCAO_DEPENDENTE = 189.59;
+
+// ── Cálculo INSS ────────────────────────────────────────────
+function calcularINSS(salario) {
+    if (salario <= 0) return 0;
+    let total = 0;
+    let anterior = 0;
+    for (const faixa of INSS_FAIXAS) {
+        if (salario <= anterior) break;
+        const tributavel = Math.min(salario, faixa.limite) - anterior;
+        total += tributavel * faixa.aliquota;
+        anterior = faixa.limite;
     }
-    if (grossSalary <= 2793.88) {
-        // Faixa 1 (7.5%) + o que exceder na Faixa 2 (9%)
-        const faixa1 = 1518.00 * 0.075;
-        const faixa2 = (grossSalary - 1518.00) * 0.09;
-        return faixa1 + faixa2;
-    }
-    if (grossSalary <= 4190.83) {
-        // Faixas 1 e 2 completas + o que exceder na Faixa 3 (12%)
-        const faixa1 = 1518.00 * 0.075;
-        const faixa2 = (2793.88 - 1518.00) * 0.09;
-        const faixa3 = (grossSalary - 2793.88) * 0.12;
-        return faixa1 + faixa2 + faixa3;
-    }
-    if (grossSalary <= 8157.41) {
-         // Faixas 1, 2 e 3 completas + o que exceder na Faixa 4 (14%)
-        const faixa1 = 1518.00 * 0.075;
-        const faixa2 = (2793.88 - 1518.00) * 0.09;
-        const faixa3 = (4190.83 - 2793.88) * 0.12;
-        const faixa4 = (grossSalary - 4190.83) * 0.14;
-        return faixa1 + faixa2 + faixa3 + faixa4;
-    }
-    
-    // Se o salário for maior que o teto, a contribuição é o valor máximo.
-    return TETO_INSS;
+    return Math.min(parseFloat(total.toFixed(2)), INSS_TETO);
 }
 
-/**
- * Calcula o Imposto de Renda Retido na Fonte (IRRF).
- * @param {number} baseSalary - Salário bruto.
- * @param {number} inss - Valor já calculado da contribuição do INSS.
- * @param {number} dependents - Número de dependentes.
- * @returns {number} O valor do imposto de renda.
- */
-function calculateIRRF(baseSalary, inss, dependents) {
-    const DEDUCAO_DEPENDENTE = 189.59;
-    const baseIRRF = baseSalary - inss - (dependents * DEDUCAO_DEPENDENTE);
-    let tax = 0;
-
-    if (baseIRRF <= 2259.20) {
-        tax = 0;
-    } else if (baseIRRF <= 2826.65) {
-        tax = (baseIRRF * 0.075) - 169.44;
-    } else if (baseIRRF <= 3751.05) {
-        tax = (baseIRRF * 0.15) - 381.44;
-    } else if (baseIRRF <= 4664.68) {
-        tax = (baseIRRF * 0.225) - 662.77;
-    } else {
-        tax = (baseIRRF * 0.275) - 896.00;
+// ── Cálculo IRRF ────────────────────────────────────────────
+function calcularIRRF(baseIRRF) {
+    if (baseIRRF <= 0) return 0;
+    for (const faixa of IRRF_FAIXAS) {
+        if (baseIRRF <= faixa.limite) {
+            const imposto = (baseIRRF * faixa.aliquota) - faixa.deducao;
+            return Math.max(0, parseFloat(imposto.toFixed(2)));
+        }
     }
-
-    return tax > 0 ? parseFloat(tax.toFixed(2)) : 0;
+    return 0;
 }
 
-/**
- * Função principal que calcula todos os componentes do salário líquido.
- * @param {object} totals - Objeto contendo os totais de horas extras.
- * @param {object} settings - Objeto contendo descontos e proventos customizados.
- * @returns {object} Um objeto com todos os resultados do cálculo.
- */
-export function calculateNetSalary(totals, settings) {
-    // Lê os valores dos inputs da calculadora
-    const baseSalary = parseBrazilianNumber(document.getElementById('calc-base-salary').value) || 0;
-    const workload = parseFloat(document.getElementById('calc-workload').value) || 220;
-    const dependents = parseInt(document.getElementById('calc-dependents').value) || 0;
-    
-    // Usa os totais de horas extras que foram passados como parâmetro
-    const ot50hours = totals.totalOvertime50 / 60;
-    const ot100hours = totals.totalOvertime100 / 60;
-    
-    // Usa os descontos e proventos customizados que foram passados como parâmetro
-    const totalCustomDiscounts = settings.customDiscounts.reduce((sum, d) => sum + d.value, 0);
-    const totalCustomProventos = settings.customProventos.reduce((sum, p) => sum + p.value, 0);
-    
-    // Calcula os valores das horas
-    const normalHourValue = baseSalary > 0 && workload > 0 ? baseSalary / workload : 0;
-    const totalOt50 = ot50hours * (normalHourValue * 1.5);
-    const totalOt100 = ot100hours * (normalHourValue * 2.0);
-    const dsr = (totalOt50 + totalOt100) / 6; // DSR sobre Horas Extras
-    
-    // Calcula o salário bruto total
-    const totalGross = baseSalary + totalOt50 + totalOt100 + dsr + totalCustomProventos;
-    
-    // Calcula os descontos
-    const inss = parseFloat(calculateINSS(totalGross).toFixed(2));
-    const irrf = calculateIRRF(totalGross, inss, dependents);
-    
-    const totalDiscounts = inss + irrf + totalCustomDiscounts;
-    
-    // Calcula o salário líquido e FGTS
-    const netSalary = totalGross - totalDiscounts;
-    const fgts = totalGross * 0.08;
-
-    // Retorna um objeto com todos os resultados, em vez de mexer no HTML
+// ── Estimativa de dias úteis / DSR para um mês ──────────────
+export function estimarDiasMes(ano, mes) {
+    // mes 1-based (1 = Janeiro)
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+    let domingos = 0;
+    for (let d = 1; d <= diasNoMes; d++) {
+        if (new Date(ano, mes - 1, d).getDay() === 0) domingos++;
+    }
     return {
-        baseSalary,
-        totalOt50,
-        totalOt100,
-        dsr,
-        totalGross,
+        diasUteis: diasNoMes - domingos,   // Seg-Sáb (ajustar feriados manualmente)
+        diasDSR: domingos                   // Domingos (adicionar feriados manualmente)
+    };
+}
+
+// ── Cálculo principal ───────────────────────────────────────
+/**
+ * Calcula todos os componentes do demonstrativo de pagamento.
+ * @param {object} p — Parâmetros de entrada
+ * @returns {object} Resultados completos do holerite
+ */
+export function calculateNetSalary(p) {
+    const salarioBase     = p.baseSalary      || 0;
+    const cargaHoraria    = p.workload         || 220;
+    const dependentes     = p.dependents       || 0;
+    const horasHE50       = p.ot50Hours        || 0;
+    const horasHE100      = p.ot100Hours       || 0;
+    const horasNoturnas   = p.nightHours       || 0;
+    const percNoturno     = p.nightRate        || 37.14;
+    const diasUteis       = p.workingDays      || 22;
+    const diasDSR         = p.dsrDays          || 4;
+    const horasFalta      = p.absenceHours     || 0;
+    const proventosCustom = p.customProventos  || [];
+    const descontosCustom = p.customDiscounts   || [];
+
+    // ── Valor hora ──
+    const valorHora = salarioBase > 0 && cargaHoraria > 0
+        ? salarioBase / cargaHoraria : 0;
+
+    // ── Vencimentos ──
+    const valorHE50   = parseFloat((valorHora * 1.5 * horasHE50).toFixed(2));
+    const valorHE100  = parseFloat((valorHora * 2.0 * horasHE100).toFixed(2));
+    const valorNoturno = parseFloat((valorHora * (percNoturno / 100) * horasNoturnas).toFixed(2));
+
+    // DSR = (HE50 + HE100) × diasDSR / diasUteis
+    // Nota: Adicional noturno NÃO entra na base do DSR (verificado em holerites reais)
+    const baseDSR = valorHE50 + valorHE100;
+    const valorDSR = diasUteis > 0
+        ? parseFloat((baseDSR * diasDSR / diasUteis).toFixed(2)) : 0;
+
+    const totalProventosCustom = proventosCustom.reduce((s, p) => s + (p.value || 0), 0);
+
+    const totalVencimentos = parseFloat((
+        salarioBase + valorHE50 + valorHE100 + valorNoturno + valorDSR + totalProventosCustom
+    ).toFixed(2));
+
+    // ── Descontos ──
+    const descontoFaltas = parseFloat((valorHora * horasFalta).toFixed(2));
+    const totalDescontosCustom = descontosCustom.reduce((s, d) => s + (d.value || 0), 0);
+
+    // Base de cálculo do INSS = Vencimentos − Faltas
+    const baseINSS = parseFloat((totalVencimentos - descontoFaltas).toFixed(2));
+    const inss = calcularINSS(baseINSS);
+    const aliquotaEfetivaINSS = baseINSS > 0
+        ? parseFloat(((inss / baseINSS) * 100).toFixed(2)) : 0;
+
+    // Base IRRF = Base INSS − INSS − (dependentes × dedução)
+    const baseIRRF = parseFloat((baseINSS - inss - (dependentes * DEDUCAO_DEPENDENTE)).toFixed(2));
+    const irrf = calcularIRRF(baseIRRF);
+
+    const totalDescontos = parseFloat((
+        descontoFaltas + totalDescontosCustom + inss + irrf
+    ).toFixed(2));
+
+    // ── Resultado ──
+    const salarioLiquido = parseFloat((totalVencimentos - totalDescontos).toFixed(2));
+
+    // FGTS (informativo, 8% sobre base INSS)
+    const fgts = parseFloat((baseINSS * 0.08).toFixed(2));
+
+    return {
+        // Taxas
+        valorHora,
+        // Vencimentos
+        baseSalary: salarioBase,
+        totalOt50: valorHE50,
+        totalOt100: valorHE100,
+        nightValue: valorNoturno,
+        dsr: valorDSR,
+        totalCustomProventos: totalProventosCustom,
+        totalGross: totalVencimentos,
+        // Descontos
+        absenceDeduction: descontoFaltas,
         inss,
+        inssRate: aliquotaEfetivaINSS,
+        inssBase: baseINSS,
         irrf,
-        totalDiscounts,
-        netSalary,
-        fgts
+        irrfBase: baseIRRF,
+        totalCustomDiscounts: totalDescontosCustom,
+        totalDiscounts: totalDescontos,
+        // Resultado final
+        netSalary: salarioLiquido,
+        fgts,
+        // Parâmetros de entrada (para referência nos resultados)
+        _params: {
+            workload: cargaHoraria,
+            ot50Hours: horasHE50,
+            ot100Hours: horasHE100,
+            nightHours: horasNoturnas,
+            nightRate: percNoturno,
+            absenceHours: horasFalta,
+            workingDays: diasUteis,
+            dsrDays: diasDSR,
+        }
     };
 }

@@ -97,6 +97,49 @@ export async function loadTimeEntriesForPeriod(db, currentUser, startDate, endDa
     }
 }
 
+/**
+ * Carrega os totais de despesas dos N meses anteriores ao mês/ano atual.
+ * Retorna um array de objetos { month, year, label, totalExpenses }.
+ */
+export async function loadPreviousMonthsExpenses(db, currentUser, currentYear, currentMonth, payPeriodStartDay, count = 6) {
+    const userDocRef = db.collection('users').doc(currentUser.uid);
+    const results = [];
+    const MNAMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+    for (let i = 1; i <= count; i++) {
+        let m = currentMonth - i;
+        let y = currentYear;
+        while (m <= 0) { m += 12; y--; }
+
+        let startDate, endDate;
+        if (payPeriodStartDay === 1) {
+            startDate = new Date(y, m - 1, 1);
+            endDate = new Date(y, m, 0);
+        } else {
+            endDate = new Date(y, m - 1, payPeriodStartDay - 1);
+            startDate = new Date(y, m - 2, payPeriodStartDay);
+        }
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        try {
+            const snapshot = await userDocRef.collection('expenses')
+                .where('date', '>=', startStr)
+                .where('date', '<=', endStr)
+                .get();
+
+            let total = 0;
+            snapshot.docs.forEach(doc => { total += doc.data().amount || 0; });
+            results.push({ month: m, year: y, label: `${MNAMES[m - 1]} ${y}`, totalExpenses: total });
+        } catch (e) {
+            console.error(`Erro ao carregar mês ${m}/${y}:`, e);
+            results.push({ month: m, year: y, label: `${MNAMES[m - 1]} ${y}`, totalExpenses: 0 });
+        }
+    }
+
+    return results.reverse(); // oldest first
+}
+
 // --- FUNÇÕES DE ESCRITA (CREATE / UPDATE / DELETE) ---
 
 export async function saveItem(db, currentUser, type, itemData, id) {

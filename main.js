@@ -80,6 +80,37 @@ function updateDefaultDates() {
     }
 }
 
+// --- Carregar e renderizar meses anteriores ---
+async function loadAndRenderPreviousMonths() {
+    if (!state.currentUser) return;
+    try {
+        const data = await db.loadPreviousMonthsExpenses(
+            firestoreDB, state.currentUser,
+            state.currentYear, state.currentMonth,
+            state.settings.payPeriodStartDay, 6
+        );
+        ui.renderPreviousMonths(data);
+
+        // Animate cards with GSAP if available
+        if (window.gsap) {
+            const cards = document.querySelectorAll('.prev-month-card');
+            gsap.fromTo(cards,
+                { opacity: 0, y: 20, scale: 0.95 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.07, ease: 'power3.out', clearProps: 'transform' }
+            );
+            // Animate bars growing
+            const bars = document.querySelectorAll('.prev-month-bar');
+            bars.forEach(bar => {
+                const targetH = bar.style.height;
+                bar.style.height = '0%';
+                gsap.to(bar, { height: targetH, duration: 0.8, delay: 0.3, ease: 'power2.out' });
+            });
+        }
+    } catch (e) {
+        console.error('Erro ao carregar meses anteriores:', e);
+    }
+}
+
 // --- LÓGICA PRINCIPAL ---
 async function updateDashboard() {
     if (!state.currentUser) return false;
@@ -151,10 +182,17 @@ function rerenderUI() {
     ui.updateRecurringItemsTable(state.recurringIncomes, state.recurringExpenses, state.settings.expenseCategories, tableCallbacks);
     ui.renderTransactionsFeed(state.incomes, state.expenses, state.settings.expenseCategories);
 
+    // Update search index
+    if (window.AppComponents?.Search) {
+        window.AppComponents.Search.updateData(state.incomes, state.expenses, state.settings.expenseCategories);
+    }
+
     const dashboardIsActive = document.querySelector('.tab-btn[data-tab="dashboard"]')?.classList.contains('active-tab');
     if (dashboardIsActive) {
         ui.renderDashboardCharts(state, totals);
+        ui.renderCardSpendingChart(state.expenses);
         handleGenerateReport();
+        loadAndRenderPreviousMonths();
         if (window.gsap && window.DashboardAnimations?.play) {
             setTimeout(() => {
                 window.DashboardAnimations.play();
@@ -188,7 +226,7 @@ function handleEditItem(type, id) {
         }
     }
 
-    // Lógica original para os outros itens (que usam modal)
+    // Lógica original para os outros itens (que usam drawer/modal)
     let collectionName;
     switch (type) {
         case 'recurringIncome': collectionName = 'recurringIncomes'; break;
@@ -196,6 +234,15 @@ function handleEditItem(type, id) {
         default: collectionName = `${type}s`;
     }
     const item = state[collectionName]?.find(i => i.id === id);
+
+    // Try to use drawer system for editing
+    if (window.AppComponents?.Drawer) {
+        if (type === 'income' || type === 'recurringIncome') { openIncomeDrawer(item); return; }
+        if (type === 'expense' || type === 'recurringExpense') { openExpenseDrawer(item); return; }
+        if (type === 'goal') { openGoalDrawer(item); return; }
+        if (type === 'investment') { openInvestmentDrawer(item); return; }
+    }
+
     ui.showEditModal(type, item, state);
 }
 
@@ -399,11 +446,39 @@ function sendIncomeToCalculator(id) {
 }
 
 function handleCalculateSalary() {
-    const totals = core.calculateTotals(state, 
-        utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay),
-        utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay)
-    );
-    const results = calculator.calculateNetSalary(totals, state.settings);
+    const parse = (id) => utils.parseBrazilianNumber(document.getElementById(id)?.value) || 0;
+
+    // Verifica modo auto/manual para horas extras
+    const isAutoOT = document.getElementById('calc-ot-auto')?.checked;
+    let ot50Hours = 0, ot100Hours = 0;
+    if (isAutoOT) {
+        const totals = core.calculateTotals(state, 
+            utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay),
+            utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay)
+        );
+        ot50Hours = totals.totalOvertime50 / 60;
+        ot100Hours = totals.totalOvertime100 / 60;
+    } else {
+        ot50Hours = parse('calc-ot50-hours');
+        ot100Hours = parse('calc-ot100-hours');
+    }
+
+    const params = {
+        baseSalary: parse('calc-base-salary'),
+        workload: parseFloat(document.getElementById('calc-workload')?.value) || 220,
+        dependents: parseInt(document.getElementById('calc-dependents')?.value) || 0,
+        ot50Hours,
+        ot100Hours,
+        nightHours: parse('calc-night-hours'),
+        nightRate: parse('calc-night-rate') || 37.14,
+        workingDays: parseInt(document.getElementById('calc-working-days')?.value) || 22,
+        dsrDays: parseInt(document.getElementById('calc-dsr-days')?.value) || 4,
+        absenceHours: parse('calc-absence-hours'),
+        customProventos: state.settings.customProventos || [],
+        customDiscounts: state.settings.customDiscounts || [],
+    };
+
+    const results = calculator.calculateNetSalary(params);
     ui.displaySalaryResults(results, state.settings);
 }
 
@@ -558,12 +633,38 @@ function handleTabChange(tabId) {
         window.DashboardAnimations.cleanup();
     }
 
+    // GSAP page entrance animations for all tabs
+    if (window.AppComponents?.PageAnimations) {
+        setTimeout(() => window.AppComponents.PageAnimations.animateTabEntrance(tabId), 80);
+    }
+
+    // Update FAB action per tab
+    if (window.AppComponents?.FAB) {
+        const fabActions = {
+            'income': { icon: 'fa-plus', action: () => openIncomeDrawer() },
+            'expenses': { icon: 'fa-plus', action: () => openExpenseDrawer() },
+            'goals': { icon: 'fa-plus', action: () => openGoalDrawer() },
+            'investments': { icon: 'fa-plus', action: () => openInvestmentDrawer() },
+            'hours': { icon: 'fa-plus', action: () => { document.getElementById('hour-entry')?.focus(); } },
+            'recurring': { icon: 'fa-plus', action: () => openIncomeDrawer() },
+        };
+        const fabConfig = fabActions[tabId];
+        if (fabConfig) {
+            window.AppComponents.FAB.setAction(fabConfig.icon, fabConfig.action);
+            window.AppComponents.FAB.show();
+        } else {
+            window.AppComponents.FAB.hide();
+        }
+    }
+
     if (tabId === 'dashboard') {
         const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
         const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
         const totals = core.calculateTotals(state, periodRange, overtimeRange);
         ui.renderDashboardCharts(state, totals);
+        ui.renderCardSpendingChart(state.expenses);
         handleGenerateReport();
+        loadAndRenderPreviousMonths();
 
         if (window.gsap && window.DashboardAnimations?.play) {
             setTimeout(() => {
@@ -579,6 +680,13 @@ function handleTabChange(tabId) {
             onDeleteProvento: (index) => handleDeleteCustomItem('provento', index),
             onDeleteDiscount: (index) => handleDeleteCustomItem('discount', index)
         });
+
+        // Auto-fill DSR working days / DSR days for current month
+        const monthDays = calculator.estimarDiasMes(state.currentYear, state.currentMonth);
+        const wdInput = document.getElementById('calc-working-days');
+        const dsrInput = document.getElementById('calc-dsr-days');
+        if (wdInput && !wdInput.dataset.userEdited) wdInput.value = monthDays.diasUteis;
+        if (dsrInput && !dsrInput.dataset.userEdited) dsrInput.value = monthDays.diasDSR;
     }
 }
 
@@ -692,10 +800,10 @@ window.addEventListener('click', () => {
     document.getElementById('mobile-sidebar-toggle').addEventListener('click', ui.toggleMobileMenu);
 
     // --- Listeners dos Botões de Adicionar ---
-    document.getElementById('add-income-btn').addEventListener('click', () => ui.showEditModal('income', null, state));
-    document.getElementById('add-expense-btn').addEventListener('click', () => ui.showEditModal('expense', null, state));
-    document.getElementById('add-goal-btn').addEventListener('click', () => ui.showEditModal('goal', null, state));
-    document.getElementById('add-investment-btn').addEventListener('click', () => ui.showEditModal('investment', null, state));
+    document.getElementById('add-income-btn').addEventListener('click', () => openIncomeDrawer());
+    document.getElementById('add-expense-btn').addEventListener('click', () => openExpenseDrawer());
+    document.getElementById('add-goal-btn').addEventListener('click', () => openGoalDrawer());
+    document.getElementById('add-investment-btn').addEventListener('click', () => openInvestmentDrawer());
     document.getElementById('add-hour-entry-btn').addEventListener('click', handleSaveTimeEntry);
 
     // --- Listeners dos Quick Fill Pills (Horas Extras) ---
@@ -738,13 +846,32 @@ window.addEventListener('click', () => {
     });
 
     // --- Listeners para Itens Fixos ---
-    document.getElementById('add-recurring-income-btn').addEventListener('click', () => ui.showEditModal('recurringIncome', null, state));
-    document.getElementById('add-recurring-expense-btn').addEventListener('click', () => ui.showEditModal('recurringExpense', null, state));
+    document.getElementById('add-recurring-income-btn').addEventListener('click', () => openIncomeDrawer());
+    document.getElementById('add-recurring-expense-btn').addEventListener('click', () => openExpenseDrawer());
     
     // --- Listeners da Calculadora ---
     document.getElementById('calculate-salary-btn').addEventListener('click', handleCalculateSalary);
     document.getElementById('add-provento-btn').addEventListener('click', () => handleAddCustomItem('provento'));
     document.getElementById('add-discount-btn').addEventListener('click', () => handleAddCustomItem('discount'));
+
+    // Toggle auto/manual HE
+    const otAutoToggle = document.getElementById('calc-ot-auto');
+    if (otAutoToggle) {
+        otAutoToggle.addEventListener('change', function() {
+            const manualFields = document.getElementById('calc-ot-manual-fields');
+            const autoDisplay = document.getElementById('calc-ot-auto-display');
+            const label = document.getElementById('calc-ot-mode-label');
+            if (this.checked) {
+                if (manualFields) manualFields.style.display = 'none';
+                if (autoDisplay) autoDisplay.style.display = '';
+                if (label) label.textContent = 'Automático';
+            } else {
+                if (manualFields) manualFields.style.display = '';
+                if (autoDisplay) autoDisplay.style.display = 'none';
+                if (label) label.textContent = 'Manual';
+            }
+        });
+    }
 
     // --- Listeners da Conta e Relatórios ---
     document.getElementById('save-settings-btn').addEventListener('click', handleSaveSettings);
@@ -908,13 +1035,220 @@ window.addEventListener('click', () => {
     });
 }
 
+// ==========================================
+// DRAWER FUNCTIONS (Open / Save via Drawer)
+// ==========================================
+
+function todayISO() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function openIncomeDrawer(item = null) {
+    const AC = window.AppComponents;
+    if (!AC?.Drawer) { ui.showEditModal('income', item, state); return; }
+
+    document.getElementById('drawer-income-source').value = item?.source || '';
+    document.getElementById('drawer-income-amount').value = item?.amount || '';
+    document.getElementById('drawer-income-type').value = item?.type || 'fixed';
+    document.getElementById('drawer-income-date').value = item?.date || todayISO();
+
+    const saveBtn = document.getElementById('drawer-save-income');
+    saveBtn.dataset.id = item?.id || '';
+    saveBtn.onclick = async () => {
+        const data = {
+            source: document.getElementById('drawer-income-source').value.trim(),
+            amount: utils.parseBrazilianNumber(document.getElementById('drawer-income-amount').value),
+            type: document.getElementById('drawer-income-type').value,
+            date: document.getElementById('drawer-income-date').value
+        };
+        if (!data.source) return ui.showToast('Preencha a fonte da renda.', 'error');
+        if (!data.amount || data.amount <= 0) return ui.showToast('O valor deve ser maior que zero.', 'error');
+
+        const id = saveBtn.dataset.id || null;
+        const saved = await db.saveItem(firestoreDB, state.currentUser, 'income', data, id);
+        if (saved) { AC.Drawer.close('income-drawer', () => updateDashboard()); }
+    };
+
+    AC.Drawer.open('income-drawer');
+}
+
+function openExpenseDrawer(item = null) {
+    const AC = window.AppComponents;
+    if (!AC?.Drawer) { ui.showEditModal('expense', item, state); return; }
+
+    ui.populateCategoryDropdown(state.settings.expenseCategories);
+
+    document.getElementById('drawer-expense-amount').value = item?.amount || '';
+    document.getElementById('drawer-expense-date').value = item?.date || todayISO();
+    document.getElementById('drawer-expense-description').value = item?.description || '';
+    document.getElementById('drawer-expense-category').value = item?.category || '';
+    document.getElementById('drawer-expense-payment').value = item?.payment || 'debit';
+    document.getElementById('drawer-expense-card').value = item?.card || '';
+    document.getElementById('drawer-expense-isPaid').checked = item?.isPaid || false;
+
+    // Date pills for drawer
+    setupDrawerDatePills();
+
+    const saveBtn = document.getElementById('drawer-save-expense');
+    saveBtn.dataset.id = item?.id || '';
+    saveBtn.onclick = async () => {
+        const data = {
+            amount: utils.parseBrazilianNumber(document.getElementById('drawer-expense-amount').value),
+            date: document.getElementById('drawer-expense-date').value,
+            description: document.getElementById('drawer-expense-description').value.trim(),
+            category: document.getElementById('drawer-expense-category').value,
+            payment: document.getElementById('drawer-expense-payment').value,
+            card: document.getElementById('drawer-expense-card').value,
+            isPaid: document.getElementById('drawer-expense-isPaid').checked
+        };
+        if (!data.description) return ui.showToast('Preencha a descrição.', 'error');
+        if (!data.amount || data.amount <= 0) return ui.showToast('O valor deve ser maior que zero.', 'error');
+        if (!data.category) return ui.showToast('Selecione uma categoria.', 'error');
+
+        const id = saveBtn.dataset.id || null;
+        let saved;
+        if (!id) {
+            saved = await db.saveExpense(firestoreDB, state.currentUser, data, null, 1);
+        } else {
+            saved = await db.saveItem(firestoreDB, state.currentUser, 'expense', data, id);
+        }
+        if (saved) { AC.Drawer.close('expense-drawer', () => updateDashboard()); }
+    };
+
+    AC.Drawer.open('expense-drawer');
+}
+
+function openGoalDrawer(item = null) {
+    const AC = window.AppComponents;
+    if (!AC?.Drawer) { ui.showEditModal('goal', item, state); return; }
+
+    document.getElementById('drawer-goal-name').value = item?.name || '';
+    document.getElementById('drawer-goal-target').value = item?.target || '';
+    document.getElementById('drawer-goal-current').value = item?.current || '';
+    document.getElementById('drawer-goal-deadline').value = item?.deadline || '';
+
+    const saveBtn = document.getElementById('drawer-save-goal');
+    saveBtn.dataset.id = item?.id || '';
+    saveBtn.onclick = async () => {
+        const data = {
+            name: document.getElementById('drawer-goal-name').value.trim(),
+            target: utils.parseBrazilianNumber(document.getElementById('drawer-goal-target').value),
+            current: utils.parseBrazilianNumber(document.getElementById('drawer-goal-current').value),
+            deadline: document.getElementById('drawer-goal-deadline').value
+        };
+        if (!data.name) return ui.showToast('Preencha o nome da meta.', 'error');
+        const id = saveBtn.dataset.id || null;
+        const saved = await db.saveItem(firestoreDB, state.currentUser, 'goal', data, id);
+        if (saved) { AC.Drawer.close('goal-drawer', () => updateDashboard()); }
+    };
+
+    AC.Drawer.open('goal-drawer');
+}
+
+function openInvestmentDrawer(item = null) {
+    const AC = window.AppComponents;
+    if (!AC?.Drawer) { ui.showEditModal('investment', item, state); return; }
+
+    document.getElementById('drawer-investment-description').value = item?.description || '';
+    document.getElementById('drawer-investment-amount').value = item?.amount || '';
+    document.getElementById('drawer-investment-type').value = item?.type || 'treasury';
+    document.getElementById('drawer-investment-yield').value = item?.yield || '';
+    document.getElementById('drawer-investment-date').value = item?.date || todayISO();
+
+    const saveBtn = document.getElementById('drawer-save-investment');
+    saveBtn.dataset.id = item?.id || '';
+    saveBtn.onclick = async () => {
+        const data = {
+            description: document.getElementById('drawer-investment-description').value.trim(),
+            amount: utils.parseBrazilianNumber(document.getElementById('drawer-investment-amount').value),
+            type: document.getElementById('drawer-investment-type').value,
+            yield: utils.parseBrazilianNumber(document.getElementById('drawer-investment-yield').value),
+            date: document.getElementById('drawer-investment-date').value
+        };
+        if (!data.description) return ui.showToast('Preencha a descrição.', 'error');
+        if (!data.amount || data.amount <= 0) return ui.showToast('O valor deve ser maior que zero.', 'error');
+        const id = saveBtn.dataset.id || null;
+        const saved = await db.saveItem(firestoreDB, state.currentUser, 'investment', data, id);
+        if (saved) { AC.Drawer.close('investment-drawer', () => updateDashboard()); }
+    };
+
+    AC.Drawer.open('investment-drawer');
+}
+
+function setupDrawerDatePills() {
+    const pills = document.querySelectorAll('#expense-drawer .em-date-pill');
+    const dateInput = document.getElementById('drawer-expense-date');
+    if (!pills.length || !dateInput) return;
+
+    function todayStr(offsetDays = 0) {
+        const d = new Date(); d.setDate(d.getDate() - offsetDays);
+        return d.toISOString().split('T')[0];
+    }
+
+    pills.forEach(pill => {
+        // Remove old listener by cloning
+        const newPill = pill.cloneNode(true);
+        pill.parentNode.replaceChild(newPill, pill);
+
+        newPill.addEventListener('click', () => {
+            document.querySelectorAll('#expense-drawer .em-date-pill').forEach(p => p.classList.remove('active'));
+            newPill.classList.add('active');
+            const days = parseInt(newPill.dataset.days, 10);
+            if (days === -1) {
+                dateInput.showPicker?.();
+            } else {
+                dateInput.value = todayStr(days);
+            }
+        });
+    });
+}
+
+// Wire drawer close buttons globally
+function setupDrawerCloseButtons() {
+    document.querySelectorAll('[data-close-drawer]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const drawerId = btn.dataset.closeDrawer;
+            if (window.AppComponents?.Drawer) {
+                window.AppComponents.Drawer.close(drawerId);
+            }
+        });
+    });
+}
+
+// Wire empty state CTA buttons to open drawers
+function setupEmptyStateCTAs() {
+    document.addEventListener('click', (e) => {
+        const cta = e.target.closest('[data-empty-cta]');
+        if (!cta) return;
+        const type = cta.dataset.emptyCta;
+        const actionMap = {
+            'income': openIncomeDrawer,
+            'expense': openExpenseDrawer,
+            'goals': openGoalDrawer,
+            'investments': openInvestmentDrawer,
+            'recurringIncome': openIncomeDrawer,
+            'recurringExpense': openExpenseDrawer,
+            'hours': () => document.getElementById('hour-entry')?.focus()
+        };
+        const fn = actionMap[type];
+        if (fn) fn();
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize component system
+    if (window.AppComponents) {
+        window.AppComponents.init();
+    }
+
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             state.currentUser = user;
             document.getElementById('main-container').style.display = 'flex';
 
             setupEventListeners();
+            setupDrawerCloseButtons();
+            setupEmptyStateCTAs();
             initPwaHandlers();
             checkAndShowInstallBanner();
             

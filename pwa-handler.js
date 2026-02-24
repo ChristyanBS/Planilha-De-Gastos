@@ -6,8 +6,7 @@ function showInstallBanner() {
     const installBanner = document.getElementById('install-prompt-banner');
     if (installBanner) {
         installBanner.classList.remove('hidden');
-        // Animação para deslizar para cima
-        setTimeout(() => installBanner.classList.remove('translate-y-full'), 50);
+        requestAnimationFrame(() => installBanner.classList.add('is-visible'));
     }
 }
 
@@ -34,8 +33,8 @@ export function checkAndShowInstallBanner() {
 function dismissInstallBanner() {
     const installBanner = document.getElementById('install-prompt-banner');
     if (installBanner) {
-        installBanner.classList.add('translate-y-full');
-        setTimeout(() => installBanner.classList.add('hidden'), 500);
+        installBanner.classList.remove('is-visible');
+        setTimeout(() => installBanner.classList.add('hidden'), 380);
     }
 }
 
@@ -62,8 +61,7 @@ export function initPwaHandlers() {
 
                 // Esconde o nosso banner
                 if (installBanner) {
-                    installBanner.classList.add('translate-y-full');
-                    setTimeout(() => installBanner.classList.add('hidden'), 500);
+                    dismissInstallBanner();
                 }
             }
         });

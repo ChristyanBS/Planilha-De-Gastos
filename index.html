@@ -19,6 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="dashboard-futuristic.css">
+    <link rel="stylesheet" href="components.css">
     <link rel="manifest" href="manifest.json">
     <style>
         #main-container { display: none; }
@@ -74,6 +75,12 @@
         <div class="topbar-left">
           <button id="mobile-sidebar-toggle"><i class="fas fa-bars"></i></button>
           <p id="welcome-message"></p>
+        </div>
+        <!-- Global Search -->
+        <div class="search-bar-wrapper">
+          <i class="fas fa-search search-bar-icon"></i>
+          <input type="text" id="global-search-input" class="search-bar-input" placeholder="Buscar transações..." autocomplete="off">
+          <div id="search-results-dropdown" class="search-results-dropdown"></div>
         </div>
         <div class="topbar-center">
           <button id="period-prev-btn" class="period-nav-btn" title="Mês anterior"><i class="fas fa-chevron-left"></i></button>
@@ -177,6 +184,14 @@
             </div>
           </div>
           
+          <!-- Histórico de Meses Anteriores -->
+          <div class="prev-months-section" id="prev-months-section">
+            <h4 class="prev-months-title"><i class="fas fa-history" style="color:var(--accent);margin-right:0.5rem;"></i>Gastos nos Meses Anteriores</h4>
+            <div class="prev-months-track" id="prev-months-track">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
           <div class="dashboard-charts">
             <div class="chart-wrapper">
               <h4><i class="fas fa-chart-line" style="color:var(--accent);margin-right:0.5rem;"></i>Resumo do Mês</h4>
@@ -185,6 +200,17 @@
             <div class="chart-wrapper">
               <h4><i class="fas fa-chart-pie" style="color:var(--accent);margin-right:0.5rem;"></i>Gasto por Categoria</h4>
               <div class="chart-container"><canvas id="dashboard-pie-chart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Gasto por Cartão -->
+          <div class="dashboard-charts">
+            <div class="chart-wrapper" id="card-spending-wrapper">
+              <h4><i class="fas fa-credit-card" style="color:var(--accent);margin-right:0.5rem;"></i>Gasto por Cartão / Banco</h4>
+              <div class="card-spending-pills" id="card-spending-pills">
+                <!-- Populated by JS -->
+              </div>
+              <div class="chart-container"><canvas id="dashboard-card-chart"></canvas></div>
             </div>
           </div>
 
@@ -217,6 +243,9 @@
           </div>
           
           <p id="date-range-display" class="period-range-text"></p>
+
+          <!-- Background parallax canvas -->
+          <canvas id="dash-parallax-bg" class="dash-parallax-bg"></canvas>
         </div>
         
         <!-- ===== TRANSACTIONS TAB (Visão Mensal) ===== -->
@@ -476,58 +505,218 @@
             </div>
             <div id="calculator-content" class="tab-content hidden">
                 <div class="panel-header">
-                    <h3>Calculadora de Salário Líquido</h3>
+                    <h3><i class="fas fa-calculator" style="color:var(--accent);margin-right:0.5rem;"></i>Calculadora de Salário Líquido</h3>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="space-y-4">
-                        <div><label for="calc-base-salary" class="block text-sm font-medium">Salário Bruto</label><input type="text" inputmode="decimal" id="calc-base-salary" class="form-input mt-1" placeholder="Ex: 3500,00"></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label for="calc-workload" class="block text-sm font-medium">Carga Horária (mês)</label><input type="number" id="calc-workload" value="220" class="form-input mt-1"></div>
-                            <div><label for="calc-dependents" class="block text-sm font-medium">Dependentes</label><input type="number" id="calc-dependents" value="0" class="form-input mt-1"></div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                            <div><label class="block text-sm font-medium">H. Extras 50% (Período)</label><p id="calc-ot-50-display" class="font-bold mt-1">0h 0m</p></div>
-                            <div><label class="block text-sm font-medium">H. Extras 100% (Período)</label><p id="calc-ot-100-display" class="font-bold mt-1">0h 0m</p></div>
-                            <small class="col-span-2 text-xs text-gray-500">As horas extras são calculadas automaticamente a partir da aba "Horas".</small>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t dark:border-gray-700">
-                            <div>
-                                <h4 class="font-semibold mb-2">Outros Proventos</h4>
-                                <div id="custom-proventos-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-provento-name" class="form-input" style="width:66%;" placeholder="Nome"><input type="text" inputmode="decimal" id="new-provento-value" class="form-input" style="width:34%;" placeholder="Valor"></div>
-                                <button id="add-provento-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Provento</button>
+                <div class="calc-layout">
+                    <!-- ═══ COLUNA ESQUERDA: INPUTS ═══ -->
+                    <div class="calc-inputs">
+
+                        <!-- Dados Base -->
+                        <div class="calc-section">
+                            <div class="calc-section-header"><i class="fas fa-user-tie"></i><h4>Dados Base</h4></div>
+                            <div class="calc-card">
+                                <div class="calc-field">
+                                    <label for="calc-base-salary">Salário Base</label>
+                                    <div class="calc-input-wrap">
+                                        <span class="calc-input-prefix">R$</span>
+                                        <input type="text" inputmode="decimal" id="calc-base-salary" placeholder="1.718,67" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="calc-field-row">
+                                    <div class="calc-field">
+                                        <label for="calc-workload">Carga Horária</label>
+                                        <div class="calc-input-wrap">
+                                            <input type="number" id="calc-workload" value="220" min="1">
+                                            <span class="calc-input-suffix">h/mês</span>
+                                        </div>
+                                    </div>
+                                    <div class="calc-field">
+                                        <label for="calc-dependents">Dependentes</label>
+                                        <input type="number" id="calc-dependents" value="0" min="0">
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <h4 class="font-semibold mb-2">Outros Descontos</h4>
-                                <div id="custom-discounts-list" class="space-y-2 mb-2"></div>
-                                <div class="flex gap-2"><input type="text" id="new-discount-name" class="form-input" style="width:66%;" placeholder="Nome"><input type="text" inputmode="decimal" id="new-discount-value" class="form-input" style="width:34%;" placeholder="Valor"></div>
-                                <button id="add-discount-btn" class="mt-2 w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 font-bold py-2 px-4 rounded-lg">Adicionar Desconto</button>
+                        </div>
+
+                        <!-- Horas Extras -->
+                        <div class="calc-section">
+                            <div class="calc-section-header">
+                                <i class="fas fa-clock"></i><h4>Horas Extras</h4>
+                                <label class="calc-toggle-pill" title="Alternar entre manual e automático">
+                                    <input type="checkbox" id="calc-ot-auto">
+                                    <span class="calc-toggle-pill-track"><span class="calc-toggle-pill-knob"></span></span>
+                                    <span class="calc-toggle-pill-label" id="calc-ot-mode-label">Manual</span>
+                                </label>
+                            </div>
+                            <div class="calc-card">
+                                <div id="calc-ot-auto-display" style="display:none;">
+                                    <div class="calc-auto-banner">
+                                        <i class="fas fa-magic"></i> Horas calculadas automaticamente pela aba "Horas"
+                                    </div>
+                                    <div class="calc-field-row" style="margin-top:0.6rem;">
+                                        <div class="calc-auto-val"><span class="calc-auto-label">HE 50%</span><span id="calc-ot-50-display" class="calc-auto-number">0h 0m</span></div>
+                                        <div class="calc-auto-val"><span class="calc-auto-label">HE 100%</span><span id="calc-ot-100-display" class="calc-auto-number">0h 0m</span></div>
+                                    </div>
+                                </div>
+                                <div id="calc-ot-manual-fields">
+                                    <div class="calc-field-row">
+                                        <div class="calc-field">
+                                            <label for="calc-ot50-hours">Horas Extra 50%</label>
+                                            <div class="calc-input-wrap">
+                                                <input type="text" inputmode="decimal" id="calc-ot50-hours" placeholder="39,58" autocomplete="off">
+                                                <span class="calc-input-suffix">horas</span>
+                                            </div>
+                                        </div>
+                                        <div class="calc-field">
+                                            <label for="calc-ot100-hours">Horas Extra 100%</label>
+                                            <div class="calc-input-wrap">
+                                                <input type="text" inputmode="decimal" id="calc-ot100-hours" placeholder="10,48" autocomplete="off">
+                                                <span class="calc-input-suffix">horas</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <button id="calculate-salary-btn" class="em-btn-save" style="width:100%;padding:0.75rem;">Calcular</button>
+
+                        <!-- Adicional Noturno -->
+                        <div class="calc-section">
+                            <div class="calc-section-header"><i class="fas fa-moon"></i><h4>Adicional Noturno</h4></div>
+                            <div class="calc-card">
+                                <div class="calc-field-row">
+                                    <div class="calc-field">
+                                        <label for="calc-night-hours">Horas Noturnas</label>
+                                        <div class="calc-input-wrap">
+                                            <input type="text" inputmode="decimal" id="calc-night-hours" placeholder="0" autocomplete="off">
+                                            <span class="calc-input-suffix">horas</span>
+                                        </div>
+                                    </div>
+                                    <div class="calc-field">
+                                        <label for="calc-night-rate">Percentual</label>
+                                        <div class="calc-input-wrap">
+                                            <input type="text" inputmode="decimal" id="calc-night-rate" value="37,14" autocomplete="off">
+                                            <span class="calc-input-suffix">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="calc-hint"><i class="fas fa-lightbulb"></i> CLT padrão: 20%. Com hora reduzida noturna (52m30s): 37,14%</p>
+                            </div>
+                        </div>
+
+                        <!-- DSR -->
+                        <div class="calc-section">
+                            <div class="calc-section-header"><i class="fas fa-calendar-week"></i><h4>D.S.R (Descanso Semanal Remunerado)</h4></div>
+                            <div class="calc-card">
+                                <div class="calc-field-row">
+                                    <div class="calc-field">
+                                        <label for="calc-working-days">Dias Úteis no mês</label>
+                                        <input type="number" id="calc-working-days" value="22" min="1" max="31">
+                                    </div>
+                                    <div class="calc-field">
+                                        <label for="calc-dsr-days">Domingos + Feriados</label>
+                                        <input type="number" id="calc-dsr-days" value="4" min="0" max="15">
+                                    </div>
+                                </div>
+                                <p class="calc-hint"><i class="fas fa-lightbulb"></i> DSR = (HE 50% + HE 100%) × Dom+Feriados ÷ Dias Úteis. Ajuste para feriados do mês.</p>
+                            </div>
+                        </div>
+
+                        <!-- Faltas -->
+                        <div class="calc-section">
+                            <div class="calc-section-header"><i class="fas fa-user-times"></i><h4>Faltas & Ausências</h4></div>
+                            <div class="calc-card">
+                                <div class="calc-field">
+                                    <label for="calc-absence-hours">Horas de Falta</label>
+                                    <div class="calc-input-wrap">
+                                        <input type="text" inputmode="decimal" id="calc-absence-hours" placeholder="0" autocomplete="off">
+                                        <span class="calc-input-suffix">horas</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Proventos & Descontos -->
+                        <div class="calc-section">
+                            <div class="calc-section-header"><i class="fas fa-sliders-h"></i><h4>Outros Proventos & Descontos</h4></div>
+                            <div class="calc-card">
+                                <div class="calc-custom-columns">
+                                    <div class="calc-custom-col">
+                                        <h5 class="calc-custom-title calc-custom-title--green"><i class="fas fa-plus-circle"></i> Proventos</h5>
+                                        <div id="custom-proventos-list" class="calc-custom-list"></div>
+                                        <div class="calc-custom-add">
+                                            <input type="text" id="new-provento-name" placeholder="Nome" autocomplete="off">
+                                            <input type="text" inputmode="decimal" id="new-provento-value" placeholder="Valor" autocomplete="off">
+                                            <button id="add-provento-btn" title="Adicionar"><i class="fas fa-plus"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="calc-custom-col">
+                                        <h5 class="calc-custom-title calc-custom-title--red"><i class="fas fa-minus-circle"></i> Descontos</h5>
+                                        <div id="custom-discounts-list" class="calc-custom-list"></div>
+                                        <div class="calc-custom-add">
+                                            <input type="text" id="new-discount-name" placeholder="Nome" autocomplete="off">
+                                            <input type="text" inputmode="decimal" id="new-discount-value" placeholder="Valor" autocomplete="off">
+                                            <button id="add-discount-btn" title="Adicionar"><i class="fas fa-plus"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="calculate-salary-btn" class="calc-submit-btn"><i class="fas fa-calculator"></i> Calcular Salário Líquido</button>
                     </div>
-                    <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-2">
-                        <h4 class="text-lg font-semibold text-center mb-4">Holerite</h4>
-                        <div class="border-b dark:border-gray-700 pb-2 space-y-1">
-                            <div class="flex justify-between text-sm"><p>Salário Base:</p><p id="res-base-salary">R$ 0,00</p></div>
-                            <div class="flex justify-between text-sm"><p>Horas Extras (50%):</p><p id="res-ot-50">R$ 0,00</p></div>
-                            <div class="flex justify-between text-sm"><p>Horas Extras (100%):</p><p id="res-ot-100">R$ 0,00</p></div>
-                            <div class="flex justify-between text-sm"><p>D.S.R sobre H.E.:</p><p id="res-dsr">R$ 0,00</p></div>
-                            <div id="res-custom-proventos-list"></div>
-                        </div>
-                        <div class="flex justify-between font-bold pt-1"><p>Total de Proventos:</p><p id="res-total-gross">R$ 0,00</p></div>
-                        <div class="border-b dark:border-gray-700 pt-3 pb-2 space-y-1">
-                            <div class="flex justify-between text-sm text-red-600 dark:text-red-400"><p>INSS:</p><p id="res-inss">R$ 0,00</p></div>
-                            <div class="flex justify-between text-sm text-red-600 dark:text-red-400"><p>IRRF:</p><p id="res-irrf">R$ 0,00</p></div>
-                            <div id="res-custom-discounts-list"></div>
-                        </div>
-                        <div class="flex justify-between font-bold pt-1 text-red-600 dark:text-red-400"><p>Total de Descontos:</p><p id="res-total-discounts">R$ 0,00</p></div>
-                        <div class="pt-3 text-center">
-                            <p class="text-sm font-medium">Salário Líquido:</p><p id="res-net-salary" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">R$ 0,00</p>
-                        </div>
-                        <div class="pt-3 border-t dark:border-gray-700 text-center text-xs">
-                            <p>FGTS (não descontado): <span id="res-fgts" class="font-medium">R$ 0,00</span></p>
-                            <p>Total de Horas Trabalhadas: <span id="res-total-hours" class="font-medium">220h</span></p>
+
+                    <!-- ═══ COLUNA DIREITA: HOLERITE ═══ -->
+                    <div class="calc-results">
+                        <div class="calc-holerite">
+                            <div class="calc-holerite-header">
+                                <h4><i class="fas fa-file-invoice-dollar"></i> Demonstrativo de Pagamento</h4>
+                                <span class="calc-holerite-rate" id="res-hourly-rate">Valor hora: R$ 0,00</span>
+                            </div>
+
+                            <!-- Vencimentos -->
+                            <div class="calc-holerite-section calc-holerite-section--earnings">
+                                <div class="calc-holerite-section-label">Vencimentos</div>
+                                <table class="calc-holerite-table">
+                                    <thead><tr><th>Descrição</th><th>Ref.</th><th>Valor</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Salário Base</td><td id="res-ref-base">220h</td><td id="res-base-salary">0,00</td></tr>
+                                        <tr id="res-ot50-row"><td>Hora Extra 50%</td><td id="res-ref-ot50">—</td><td id="res-ot-50">0,00</td></tr>
+                                        <tr id="res-ot100-row"><td>Hora Extra 100%</td><td id="res-ref-ot100">—</td><td id="res-ot-100">0,00</td></tr>
+                                        <tr id="res-night-row"><td>Adicional Noturno</td><td id="res-ref-night">—</td><td id="res-night">0,00</td></tr>
+                                        <tr id="res-dsr-row"><td>D.S.R sobre H.E.</td><td id="res-ref-dsr"></td><td id="res-dsr">0,00</td></tr>
+                                    </tbody>
+                                    <tbody id="res-custom-proventos-list"></tbody>
+                                    <tfoot><tr class="calc-holerite-total"><td colspan="2">Total Vencimentos</td><td id="res-total-gross">0,00</td></tr></tfoot>
+                                </table>
+                            </div>
+
+                            <!-- Descontos -->
+                            <div class="calc-holerite-section calc-holerite-section--deductions">
+                                <div class="calc-holerite-section-label">Descontos</div>
+                                <table class="calc-holerite-table">
+                                    <thead><tr><th>Descrição</th><th>Ref.</th><th>Valor</th></tr></thead>
+                                    <tbody>
+                                        <tr id="res-absence-row" style="display:none;"><td>Faltas / Horas não trabalhadas</td><td id="res-ref-absence">—</td><td id="res-absence" class="calc-val-red">0,00</td></tr>
+                                        <tr><td>INSS</td><td id="res-ref-inss">0,00%</td><td id="res-inss" class="calc-val-red">0,00</td></tr>
+                                        <tr id="res-irrf-row"><td>IRRF</td><td id="res-ref-irrf">—</td><td id="res-irrf" class="calc-val-red">0,00</td></tr>
+                                    </tbody>
+                                    <tbody id="res-custom-discounts-list"></tbody>
+                                    <tfoot><tr class="calc-holerite-total"><td colspan="2">Total Descontos</td><td id="res-total-discounts" class="calc-val-red">0,00</td></tr></tfoot>
+                                </table>
+                            </div>
+
+                            <!-- Líquido -->
+                            <div class="calc-holerite-net">
+                                <span class="calc-holerite-net-label">Valor Líquido</span>
+                                <span class="calc-holerite-net-value" id="res-net-salary">R$ 0,00</span>
+                            </div>
+
+                            <!-- Rodapé informativo -->
+                            <div class="calc-holerite-footer">
+                                <div><span>Base INSS</span><span id="res-inss-base">0,00</span></div>
+                                <div><span>Base IRRF</span><span id="res-irrf-base">0,00</span></div>
+                                <div><span>FGTS do mês</span><span id="res-fgts">0,00</span></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -677,6 +866,202 @@
     </div><!-- /main-panel -->
   </div><!-- /app-layout main-container -->
 
+  <!-- ===== DRAWER OVERLAY ===== -->
+  <div id="drawer-overlay" class="drawer-overlay"></div>
+
+  <!-- ===== INCOME DRAWER ===== -->
+    <div id="income-drawer" class="drawer-panel drawer-income" style="transform:translateX(100%)">
+        <div class="drawer-header">
+      <button class="drawer-close-btn" data-close-drawer="income-drawer"><i class="fas fa-times"></i></button>
+      <h3 class="drawer-title">Adicionar Renda</h3>
+      <div></div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-wallet"></i> Fonte</label>
+        <input type="text" id="drawer-income-source" placeholder="Ex: Salário, Freelance..." class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-dollar-sign"></i> Valor</label>
+        <input type="text" inputmode="decimal" id="drawer-income-amount" placeholder="0,00" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-tag"></i> Tipo</label>
+        <select id="drawer-income-type" class="drawer-field-input">
+          <option value="fixed">Fixo</option>
+          <option value="variable">Variável</option>
+          <option value="extra">Extra</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-calendar-alt"></i> Data</label>
+        <input type="date" id="drawer-income-date" class="drawer-field-input">
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="drawer-btn-cancel" data-close-drawer="income-drawer">Cancelar</button>
+      <button id="drawer-save-income" class="drawer-btn-save"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+
+  <!-- ===== EXPENSE DRAWER ===== -->
+    <div id="expense-drawer" class="drawer-panel drawer-expense" style="transform:translateX(100%)">
+        <div class="drawer-header">
+      <button class="drawer-close-btn" data-close-drawer="expense-drawer"><i class="fas fa-times"></i></button>
+      <h3 class="drawer-title">Nova Despesa</h3>
+      <div></div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-hero-amount drawer-field">
+        <label class="drawer-field-label" style="text-align:center;"><i class="fas fa-calculator"></i> Valor</label>
+        <input type="text" inputmode="decimal" id="drawer-expense-amount" placeholder="0,00" class="drawer-field-input" style="font-size:1.6rem;text-align:center;font-weight:700;letter-spacing:0.04em;" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-calendar-alt"></i> Data</label>
+        <div class="em-date-pills" style="margin-bottom:0.5rem;">
+          <button type="button" class="em-date-pill active" data-days="0">Hoje</button>
+          <button type="button" class="em-date-pill" data-days="1">Ontem</button>
+          <button type="button" class="em-date-pill em-date-outros" data-days="-1">Outros...</button>
+        </div>
+        <input type="date" id="drawer-expense-date" class="drawer-field-input">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-heart"></i> Descrição</label>
+        <input type="text" id="drawer-expense-description" placeholder="Descrição" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-tag"></i> Categoria</label>
+        <select id="drawer-expense-category" class="drawer-field-input"></select>
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-university"></i> Pagamento</label>
+        <select id="drawer-expense-payment" class="drawer-field-input">
+          <option value="debit">Débito</option>
+          <option value="credit">Crédito</option>
+          <option value="pix">PIX</option>
+          <option value="cash">Dinheiro</option>
+          <option value="transfer">Transferência</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-credit-card"></i> Cartão / Banco</label>
+        <select id="drawer-expense-card" class="drawer-field-input">
+          <option value="">Nenhum</option>
+          <option value="nubank">Nubank</option>
+          <option value="picpay">PicPay</option>
+          <option value="santander">Santander</option>
+          <option value="itau">Itaú</option>
+          <option value="bradesco">Bradesco</option>
+          <option value="c6bank">C6 Bank</option>
+          <option value="inter">Inter</option>
+          <option value="caixa">Caixa</option>
+          <option value="bb">Banco do Brasil</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="drawer-toggle-row drawer-field">
+        <span><i class="fas fa-check-circle" style="margin-right:0.4rem;opacity:0.6;"></i>Foi paga</span>
+        <label class="em-toggle-switch">
+          <input type="checkbox" id="drawer-expense-isPaid" class="em-toggle-input">
+          <span class="em-toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="drawer-btn-cancel" data-close-drawer="expense-drawer">Cancelar</button>
+            <button id="drawer-save-expense" class="drawer-btn-save"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+
+  <!-- ===== GOAL DRAWER ===== -->
+    <div id="goal-drawer" class="drawer-panel drawer-goal" style="transform:translateX(100%)">
+        <div class="drawer-header">
+      <button class="drawer-close-btn" data-close-drawer="goal-drawer"><i class="fas fa-times"></i></button>
+      <h3 class="drawer-title">Adicionar Meta</h3>
+      <div></div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-bullseye"></i> Nome</label>
+        <input type="text" id="drawer-goal-name" placeholder="Nome da Meta" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-trophy"></i> Valor Alvo</label>
+        <input type="text" inputmode="decimal" id="drawer-goal-target" placeholder="0,00" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-coins"></i> Valor Atual</label>
+        <input type="text" inputmode="decimal" id="drawer-goal-current" placeholder="0,00" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-calendar-alt"></i> Prazo (opcional)</label>
+        <input type="date" id="drawer-goal-deadline" class="drawer-field-input">
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="drawer-btn-cancel" data-close-drawer="goal-drawer">Cancelar</button>
+            <button id="drawer-save-goal" class="drawer-btn-save"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+
+  <!-- ===== INVESTMENT DRAWER ===== -->
+    <div id="investment-drawer" class="drawer-panel drawer-investment" style="transform:translateX(100%)">
+        <div class="drawer-header">
+      <button class="drawer-close-btn" data-close-drawer="investment-drawer"><i class="fas fa-times"></i></button>
+      <h3 class="drawer-title">Adicionar Investimento</h3>
+      <div></div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-pen"></i> Descrição</label>
+        <input type="text" id="drawer-investment-description" placeholder="Ex: Tesouro Selic 2029" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-dollar-sign"></i> Valor Aportado</label>
+        <input type="text" inputmode="decimal" id="drawer-investment-amount" placeholder="0,00" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-layer-group"></i> Tipo</label>
+        <select id="drawer-investment-type" class="drawer-field-input">
+          <option value="treasury">Tesouro Direto</option>
+          <option value="cdb">CDB/LCI/LCA</option>
+          <option value="stocks">Ações</option>
+          <option value="fiis">FIIs</option>
+          <option value="funds">Fundos</option>
+          <option value="savings">Poupança</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-percent"></i> Rentabilidade Anual (%)</label>
+        <input type="text" inputmode="decimal" id="drawer-investment-yield" placeholder="12,5" class="drawer-field-input" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-field-label"><i class="fas fa-calendar-alt"></i> Data</label>
+        <input type="date" id="drawer-investment-date" class="drawer-field-input">
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="drawer-btn-cancel" data-close-drawer="investment-drawer">Cancelar</button>
+            <button id="drawer-save-investment" class="drawer-btn-save"><i class="fas fa-check"></i> Salvar</button>
+    </div>
+  </div>
+
+  <!-- ===== ANIMATED CONFIRMATION MODAL ===== -->
+  <div id="confirm-modal-animated" class="confirm-modal-overlay">
+    <div class="confirm-modal-card">
+      <div class="confirm-modal-icon"><i class="fas fa-trash-alt"></i></div>
+      <h3 class="confirm-modal-title">Excluir item?</h3>
+      <p class="confirm-modal-message">Esta ação não pode ser desfeita.</p>
+      <div class="confirm-modal-actions">
+        <button class="btn-confirm-cancel">Cancelar</button>
+        <button class="btn-confirm-delete">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FAB (Mobile) ===== -->
+  <button id="fab-main" class="fab-btn" style="display:none;"><i class="fas fa-plus"></i></button>
+
         <div id="income-modal" class="modal hidden fixed inset-0 bg-black/60 items-center justify-center z-50 p-4">
     <div class="modal-shell">
         <button id="close-income-modal" class="modal-close-btn">&times;</button>
@@ -757,6 +1142,24 @@
                         <option value="pix">PIX</option>
                         <option value="cash">Dinheiro</option>
                         <option value="transfer">Transferência</option>
+                    </select>
+                </div>
+
+                <!-- Card / Bank Row -->
+                <div class="em-row">
+                    <i class="fas fa-credit-card em-row-icon"></i>
+                    <select id="expense-card" name="card" class="em-row-select">
+                        <option value="">Nenhum</option>
+                        <option value="nubank">Nubank</option>
+                        <option value="picpay">PicPay</option>
+                        <option value="santander">Santander</option>
+                        <option value="itau">Itaú</option>
+                        <option value="bradesco">Bradesco</option>
+                        <option value="c6bank">C6 Bank</option>
+                        <option value="inter">Inter</option>
+                        <option value="caixa">Caixa</option>
+                        <option value="bb">Banco do Brasil</option>
+                        <option value="outro">Outro</option>
                     </select>
                 </div>
 
@@ -983,21 +1386,21 @@
     </div>
 </div>
 
-<div id="install-prompt-banner"class="hidden no-print fixed bottom-0 left-0 right-0 w-full bg-indigo-600 dark:bg-indigo-700 text-white p-4 shadow-lg z-50 transform translate-y-full transition-transform duration-500 ease-in-out">
-    <div class="container mx-auto flex items-center justify-between">
-        <div class="flex items-center">
-            <img src="images/icons/icon-192x192.png" alt="App Icon" class="w-10 h-10 mr-4 rounded-lg">
-            <div>
-                <h4 class="font-bold">Instale nosso aplicativo!</h4>
-                <p class="text-sm">Tenha acesso rápido e offline diretamente da sua tela inicial.</p>
+<div id="install-prompt-banner" class="hidden no-print" role="region" aria-label="Instalar aplicativo">
+    <div class="install-banner-inner">
+        <div class="install-banner-main">
+            <div class="install-banner-icon-wrap">
+                <img src="images/icons/icon-192x192.png" alt="Ícone do aplicativo" class="install-banner-icon">
+            </div>
+            <div class="install-banner-copy">
+                <h4>Instale nosso aplicativo</h4>
+                <p>Acesso rápido e offline direto da sua tela inicial.</p>
             </div>
         </div>
-        <div class="flex items-center">
-            <button id="install-app-btn" class="bg-white hover:bg-gray-200 text-indigo-700 font-bold py-2 px-4 rounded-lg transition-colors">
-                Instalar
-            </button>
-            <button id="close-install-banner-btn" class="ml-4 text-2xl opacity-80 hover:opacity-100" title="Fechar">
-                &times;
+        <div class="install-banner-actions">
+            <button id="install-app-btn" class="install-banner-cta">Instalar</button>
+            <button id="close-install-banner-btn" class="install-banner-close" title="Fechar" aria-label="Fechar aviso de instalação">
+                <i class="fas fa-times"></i>
             </button>
         </div>
     </div>
@@ -1034,6 +1437,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="./dashboard-animations.js"></script>
+    <script src="./components.js"></script>
 
     <script src="./utils.js" type="module"></script>
     <script src="./core.js" type="module"></script>
