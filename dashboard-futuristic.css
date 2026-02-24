@@ -398,3 +398,43 @@
 .btn-remove-photo.hidden {
     display: none;
 }
+
+/* ============================================= */
+/* === MOBILE OVERRIDES — DASHBOARD           === */
+/* ============================================= */
+
+@media (max-width: 767px) {
+    /* Chart containers: reduce min-height for mobile */
+    .chart-container {
+        min-height: 200px;
+    }
+    #dashboard-reports-wrapper .chart-container {
+        min-height: 200px;
+    }
+    /* Report select: fill width */
+    #dashboard-reports-wrapper .panel-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    #dashboard-reports-wrapper select.form-input {
+        width: 100%;
+        min-width: 0 !important;
+    }
+    #dashboard-reports-wrapper #generate-report-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    /* Make dashboard content not overflow */
+    #dashboard-content {
+        overflow-x: hidden;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        min-height: 170px;
+    }
+    #dashboard-reports-wrapper .chart-container {
+        min-height: 180px;
+    }
+}

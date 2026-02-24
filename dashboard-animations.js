@@ -380,11 +380,12 @@ const DashboardAnimations = (() => {
         let mouseX = 0.5, mouseY = 0.5;
         let animFrame = null;
         let particles = [];
-        const PARTICLE_COUNT = 32;
+        const isMobile = window.innerWidth < 768;
+        const PARTICLE_COUNT = isMobile ? 16 : 32;
 
         function resize() {
             canvas.width = dashboard.offsetWidth;
-            canvas.height = 220;
+            canvas.height = canvas.offsetHeight || (isMobile ? 120 : 220);
         }
 
         function createParticles() {
@@ -452,12 +453,21 @@ const DashboardAnimations = (() => {
             mouseY = (e.clientY - rect.top) / rect.height;
         }
 
+        function onTouchMove(e) {
+            if (e.touches.length > 0) {
+                const rect = dashboard.getBoundingClientRect();
+                mouseX = (e.touches[0].clientX - rect.left) / rect.width;
+                mouseY = (e.touches[0].clientY - rect.top) / rect.height;
+            }
+        }
+
         resize();
         createParticles();
         draw();
 
         window.addEventListener('resize', resize);
         dashboard.addEventListener('mousemove', onMouseMove);
+        dashboard.addEventListener('touchmove', onTouchMove, { passive: true });
 
         // Fade in canvas
         gsap.fromTo(canvas, { opacity: 0 }, { opacity: 1, duration: 1.5, ease: 'power2.out' });
@@ -466,6 +476,7 @@ const DashboardAnimations = (() => {
             if (animFrame) cancelAnimationFrame(animFrame);
             window.removeEventListener('resize', resize);
             dashboard.removeEventListener('mousemove', onMouseMove);
+            dashboard.removeEventListener('touchmove', onTouchMove);
             parallaxCleanup = null;
         };
     }
