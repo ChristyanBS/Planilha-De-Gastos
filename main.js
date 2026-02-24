@@ -469,11 +469,19 @@ async function handleDeleteCustomItem(type, index) {
 }
 
 function handleTabChange(tabId) {
+    if (tabId !== 'dashboard' && window.DashboardAnimations?.cleanup) {
+        window.DashboardAnimations.cleanup();
+    }
+
     if (tabId === 'dashboard') {
         const periodRange = utils.getPayPeriodRange(state.currentYear, state.currentMonth, state.settings.payPeriodStartDay);
         const overtimeRange = utils.getOvertimePeriodRange(state.currentYear, state.currentMonth, state.settings.overtimeStartDay, state.settings.overtimeEndDay);
         const totals = core.calculateTotals(state, periodRange, overtimeRange);
         ui.renderDashboardCharts(state, totals);
+
+        if (window.gsap && window.DashboardAnimations?.play) {
+            requestAnimationFrame(() => window.DashboardAnimations.play());
+        }
     } else if (tabId === 'reports') {
         handleGenerateReport();
     } else if (tabId === 'calculator') {
